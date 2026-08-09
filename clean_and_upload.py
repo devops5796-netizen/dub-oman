@@ -23,12 +23,38 @@ THUMB_URL_TEMPLATE = "https://images.dubizzle.com.om/thumbnails/{photo_id}-800x6
 
 COLUMNS_TO_DROP = ['geo_point', 'price', 'title_l1', 'description_l1', 'slug_l1', 'coverPhoto',
                    'external_link', 'external_link_l1', 'documentsTags', 'videoCount', 'documentCount'
-                   'panoramaCount']
+                   'panoramaCount', 'location.lvl0','location.lvl1','location.lvl2', 'category.lvl0',
+                   'category.lvl1','category.lvl2']
 
 VEHICLE_MANUFACTURER_SPLIT_SLUGS = {"cars-for-sale", "cars-for-rent"}
 
-TIMESTAMP_FIELDS = ("createdAt", "updatedAt", "timestamp")
+# Some top-level scraped categories should be grouped under a shared parent
+# folder in R2, with their own slug as the subfolder:
+#   properties-for-rent -> properties/properties-for-rent
+#   properties-for-sale -> properties/properties-for-sale
+CATEGORY_GROUP_OVERRIDES = {
+    "properties-for-rent": "properties",
+    "properties-for-sale": "properties",
+}
 
+
+def resolve_category_r2_path(cat0_slug: str, subcat_slug: str | None = None) -> str:
+    """
+    Slug-based R2 folder path for a top-level category, optionally nested
+    under a subcategory slug.
+
+    - properties-for-rent / properties-for-sale -> "properties/<own-slug>"
+    - vehicles + a subcat slug                  -> "vehicles/<subcat-slug>"
+    - everything else                           -> the category's own slug
+    """
+    cat0_slug = cat0_slug or "uncategorized"
+    if cat0_slug in CATEGORY_GROUP_OVERRIDES:
+        return f"{CATEGORY_GROUP_OVERRIDES[cat0_slug]}/{cat0_slug}"
+    if cat0_slug == "vehicles" and subcat_slug:
+        return f"vehicles/{subcat_slug}"
+    return cat0_slug
+
+TIMESTAMP_FIELDS = ("createdAt", "updatedAt", "timestamp")
 
 # =============================================================================
 # Helper functions (unchanged)
@@ -132,7 +158,7 @@ def download_images(images: list, id_prod: str, category_display: str, dt: datet
             if r.status_code == 200:
                 img = Image.open(io.BytesIO(r.content)).convert("RGB")
                 buf = io.BytesIO()
-                img.save(buf, format="WEBP", quality=100, method=6)
+                img.save(buf, format="WEBP", quality=75, method=6)
                 buf.seek(0)
                 r2_key = upload_buffer(
                     buf,
@@ -180,7 +206,14 @@ def clean_and_group(df: pd.DataFrame, page=None, dt: datetime = None):
         sheet = sheet_name_for(cat1, cat2)
         urls = photo_urls(row.get("photos"))
         ad_id = str(row.get("id") or row.get("externalID") or "")
-        image_r2_paths = download_images(urls, id_prod=ad_id, category_display=cat0_name_l1, dt=dt)
+
+        if cat0_slug == "vehicles":
+            subcat_slug = (cat1.get("slug") if cat1 else None) or "uncategorized"
+            r2_category_path = resolve_category_r2_path(cat0_slug, subcat_slug)
+        else:
+            r2_category_path = resolve_category_r2_path(cat0_slug)
+
+        image_r2_paths = download_images(urls, id_prod=ad_id, category_display=r2_category_path, dt=dt)
         record = row.to_dict()
         record = clean_timestamp_fields(record)
         record["image_r2_paths"] = image_r2_paths
@@ -249,7 +282,7 @@ def group_by_make_model(records: list) -> dict:
 
 def split_vehicle_records(records: list) -> tuple[dict, dict]:
     manufacturer_groups: dict[str, dict] = {}
-    other_sheets: dict[str, list] = {}
+    other_groups: dict[str, dict] = {}
     for record in records:
         _, cat1, _ = parse_category(record.get("category"))
         if cat1 is None:
@@ -262,8 +295,25 @@ def split_vehicle_records(records: list) -> tuple[dict, dict]:
             group = manufacturer_groups.setdefault(slug, {"name": name, "records": []})
             group["records"].append(record)
         else:
-            other_sheets.setdefault(name, []).append(record)
-    return manufacturer_groups, other_sheets
+            group = other_groups.setdefault(slug, {"name": name, "records": []})
+            group["records"].append(record)
+    return manufacturer_groups, other_groups
+
+
+def group_by_subsubcategory(records: list) -> dict[str, list]:
+    """Group a single subcategory's own records by their cat2 (sub-subcategory),
+    falling back to cat1's own name when there's no deeper level."""
+    groups: dict[str, list] = {}
+    for record in records:
+        _, cat1, cat2 = parse_category(record.get("category"))
+        if cat2:
+            name = clean_text(cat2.get("name_l1") or cat2.get("name") or "Other")
+        elif cat1:
+            name = clean_text(cat1.get("name_l1") or cat1.get("name") or "Other")
+        else:
+            name = "Other"
+        groups.setdefault(name, []).append(record)
+    return groups
 
 
 def has_any_subsubcategory(records: list) -> bool:
@@ -278,15 +328,14 @@ def build_subcategory_files(records: list) -> dict[str, dict[str, list]]:
     files: dict[str, dict[str, list]] = {}
     for record in records:
         _, cat1, cat2 = parse_category(record.get("category"))
-        if cat1 is None:
-            subcat_name = "Uncategorized"
-        else:
-            subcat_name = clean_text(cat1.get("name_l1") or cat1.get("name") or "Uncategorized")
+        subcat_slug = (cat1.get("slug") if cat1 else None) or "uncategorized"
         if cat2:
-            sheet_name = clean_text(cat2.get("name_l1") or cat2.get("name") or subcat_name)
+            sheet_name = clean_text(cat2.get("name_l1") or cat2.get("name") or subcat_slug)
+        elif cat1:
+            sheet_name = clean_text(cat1.get("name_l1") or cat1.get("name") or subcat_slug)
         else:
-            sheet_name = subcat_name
-        files.setdefault(subcat_name, {}).setdefault(sheet_name, []).append(record)
+            sheet_name = "Uncategorized"
+        files.setdefault(subcat_slug, {}).setdefault(sheet_name, []).append(record)
     return files
 
 
@@ -425,6 +474,7 @@ def build_complete_summary(records: list, cat0_name_l1: str, cat0_slug: str, dt:
             "name_ar": cat0_name_ar or cat0_name_l1,
             "name_en": cat0_name_l1,
             "slug": cat0_slug,
+            "r2_path": resolve_category_r2_path(cat0_slug),
         },
         "workflow_name": "doman",
         "total_subcategories": len(subcategories),
@@ -496,69 +546,82 @@ def run(csv_path: str, date_str: str | None = None, skip_summary: bool = False):
 
     # Upload files based on category type
     if cat0_slug == "vehicles":
-        manufacturer_groups, other_sheets = split_vehicle_records(records)
+        manufacturer_groups, other_groups = split_vehicle_records(records)
+
+        # cars-for-sale / cars-for-rent: split by brand into files, each
+        # file split into sheets by model -> vehicles/<slug>/excel|json/
         for slug, group in manufacturer_groups.items():
+            r2_path = resolve_category_r2_path(cat0_slug, slug)
             by_make = group_by_make_model(group["records"])
             for make, models in by_make.items():
                 total_ads = sum(len(rows) for rows in models.values())
                 print(f"    - {make}: {len(models)} model(s), {total_ads} ad(s)")
-                
+
                 excel_buf = build_excel(models)
                 excel_key = upload_buffer(
                     excel_buf,
-                    filename=f"{make}.xlsx",
-                    category_display=cat0_name_l1,
+                    filename=f"{sanitize_filename(make)}.xlsx",
+                    category_display=r2_path,
                     file_type="excel",
                     content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     dt=dt,
                 )
                 print(f"      Excel -> {excel_key}")
-                
+
                 json_bytes = json.dumps(models, ensure_ascii=False, indent=2, default=str).encode("utf-8")
                 json_key = upload_buffer(
                     io.BytesIO(json_bytes),
-                    filename=f"{make}.json",
-                    category_display=cat0_name_l1,
+                    filename=f"{sanitize_filename(make)}.json",
+                    category_display=r2_path,
                     file_type="json",
                     content_type="application/json",
                     dt=dt,
                 )
                 print(f"      JSON  -> {json_key}")
-        
-        if other_sheets:
-            excel_buf = build_excel(other_sheets)
+
+        # every other vehicle subcategory (boats, motorcycles, trucks,
+        # spare-parts, vip-car-plates, other-vehicles, car-accessories, ...)
+        # gets its own folder -> vehicles/<slug>/excel|json/
+        for slug, group in other_groups.items():
+            r2_path = resolve_category_r2_path(cat0_slug, slug)
+            sub_sheets = group_by_subsubcategory(group["records"])
+            total_ads = sum(len(rows) for rows in sub_sheets.values())
+            print(f"    - {slug}: {len(sub_sheets)} sheet(s), {total_ads} ad(s)")
+
+            excel_buf = build_excel(sub_sheets)
             excel_key = upload_buffer(
                 excel_buf,
-                filename="Vehicles.xlsx",
-                category_display=cat0_name_l1,
+                filename=f"{slug}.xlsx",
+                category_display=r2_path,
                 file_type="excel",
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 dt=dt,
             )
-            print(f"Vehicles (other subcats) Excel -> {excel_key}")
-            
-            json_bytes = json.dumps(other_sheets, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+            print(f"      Excel -> {excel_key}")
+
+            json_bytes = json.dumps(sub_sheets, ensure_ascii=False, indent=2, default=str).encode("utf-8")
             json_key = upload_buffer(
                 io.BytesIO(json_bytes),
-                filename="Vehicles.json",
-                category_display=cat0_name_l1,
+                filename=f"{slug}.json",
+                category_display=r2_path,
                 file_type="json",
                 content_type="application/json",
                 dt=dt,
             )
-            print(f"Vehicles (other subcats) JSON  -> {json_key}")
+            print(f"      JSON  -> {json_key}")
 
     elif has_any_subsubcategory(records):
+        r2_path = resolve_category_r2_path(cat0_slug)
         subcat_files = build_subcategory_files(records)
-        for subcat_name, sheets in subcat_files.items():
+        for subcat_slug, sheets in subcat_files.items():
             total_ads = sum(len(rows) for rows in sheets.values())
-            print(f"  {subcat_name}: {len(sheets)} sheet(s), {total_ads} ad(s)")
+            print(f"  {subcat_slug}: {len(sheets)} sheet(s), {total_ads} ad(s)")
             
             excel_buf = build_excel(sheets)
             excel_key = upload_buffer(
                 excel_buf,
-                filename=f"{subcat_name}.xlsx",
-                category_display=cat0_name_l1,
+                filename=f"{subcat_slug}.xlsx",
+                category_display=r2_path,
                 file_type="excel",
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 dt=dt,
@@ -568,8 +631,8 @@ def run(csv_path: str, date_str: str | None = None, skip_summary: bool = False):
             json_bytes = json.dumps(sheets, ensure_ascii=False, indent=2, default=str).encode("utf-8")
             json_key = upload_buffer(
                 io.BytesIO(json_bytes),
-                filename=f"{subcat_name}.json",
-                category_display=cat0_name_l1,
+                filename=f"{subcat_slug}.json",
+                category_display=r2_path,
                 file_type="json",
                 content_type="application/json",
                 dt=dt,
@@ -577,11 +640,12 @@ def run(csv_path: str, date_str: str | None = None, skip_summary: bool = False):
             print(f"    JSON  -> {json_key}")
 
     else:
+        r2_path = resolve_category_r2_path(cat0_slug)
         excel_buf = build_excel(sheets)
         excel_key = upload_buffer(
             excel_buf,
             filename=f"{cat0_slug}.xlsx",
-            category_display=cat0_name_l1,
+            category_display=r2_path,
             file_type="excel",
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             dt=dt,
@@ -592,7 +656,7 @@ def run(csv_path: str, date_str: str | None = None, skip_summary: bool = False):
         json_key = upload_buffer(
             io.BytesIO(json_bytes),
             filename=f"{cat0_slug}.json",
-            category_display=cat0_name_l1,
+            category_display=r2_path,
             file_type="json",
             content_type="application/json",
             dt=dt,
@@ -603,6 +667,7 @@ def run(csv_path: str, date_str: str | None = None, skip_summary: bool = False):
     # Build summary but don't upload if skip_summary is True
     # ========================================================================
     summary = build_complete_summary(records, cat0_name_l1, cat0_slug, dt, cat0_name_ar)
+    summary_r2_path = resolve_category_r2_path(cat0_slug)
     
     if skip_summary:
         # ✅ Save placeholder locally (to be finalized later)
@@ -617,7 +682,7 @@ def run(csv_path: str, date_str: str | None = None, skip_summary: bool = False):
         summary_key = upload_buffer(
             io.BytesIO(summary_bytes),
             filename="summary.json",
-            category_display=cat0_name_l1,
+            category_display=summary_r2_path,
             file_type="summary",
             content_type="application/json",
             dt=dt,

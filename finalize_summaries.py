@@ -76,8 +76,13 @@ def finalize_summaries(summaries_dir: str, date_str: str, workflow_name: str = N
         if workflow_name:
             summary["workflow_name"] = workflow_name
         
-        # Get category display name from summary
-        category_display = summary.get("category", {}).get("name_en", category)
+        # Get category display name from summary — prefer the slug-based
+        # r2_path saved by clean_and_upload.py, fall back to the old
+        # display-name behavior for older summaries that don't have it.
+        category_display = (
+            summary.get("category", {}).get("r2_path")
+            or summary.get("category", {}).get("name_en", category)
+        )
         
         # Upload to R2
         summary_bytes = json.dumps(summary, ensure_ascii=False, indent=2).encode("utf-8")

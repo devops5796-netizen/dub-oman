@@ -18,18 +18,18 @@ jobs:
         category:
           - vehicles
           - properties-for-rent
-          - properties-for-sale
-          - mobile-phones-accessories
-          - electronics-home-appliances
-          - home-garden
-          - fashion-beauty
+          # - properties-for-sale
+          # - mobile-phones-accessories
+          # - electronics-home-appliances
+          # - home-garden
+          # - fashion-beauty
           - pets
-          - kids-babies
-          - sporting-goods-bikes
-          - hobbies-music-art-books
-          - jobs-services
-          - business-industrial
-          - services
+          # - kids-babies
+          # - sporting-goods-bikes
+          # - hobbies-music-art-books
+          # - jobs-services
+          # - business-industrial
+          # - services
 
     steps:
       - uses: actions/checkout@v4
