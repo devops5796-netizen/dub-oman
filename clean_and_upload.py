@@ -135,6 +135,36 @@ def clean_timestamp_fields(record: dict) -> dict:
     return record
 
 
+def clean_active_products(record: dict) -> dict:
+    """Format Unix timestamps inside activeProducts dict (expiresAt & appliedAt)."""
+    if "activeProducts" not in record:
+        return record
+
+    ap = record["activeProducts"]
+
+    # Parse if it's still a string
+    if isinstance(ap, str):
+        try:
+            ap = ast.literal_eval(ap)
+        except (ValueError, SyntaxError):
+            try:
+                ap = json.loads(ap)
+            except (ValueError, json.JSONDecodeError):
+                return record
+
+    if not isinstance(ap, dict):
+        return record
+
+    for product_key, product_info in ap.items():
+        if not isinstance(product_info, dict):
+            continue
+        for ts_field in ("expiresAt", "appliedAt"):
+            if ts_field in product_info:
+                product_info[ts_field] = format_timestamp(product_info[ts_field])
+
+    record["activeProducts"] = ap
+    return record
+
 def _fetch_image_with_retry(img_url: str, attempts: int = 3, timeout: int = 20):
     """GET an image URL with a couple of retries on transient failures
     (timeouts, connection resets, 429/5xx). Returns the successful response
@@ -229,6 +259,7 @@ def clean_and_group(df: pd.DataFrame, page=None, dt: datetime = None):
         image_r2_paths = download_images(urls, id_prod=ad_id, category_display=r2_category_path, dt=dt)
         record = row.to_dict()
         record = clean_timestamp_fields(record)
+        record = clean_active_products(record)
         record["image_r2_paths"] = image_r2_paths
         record["photo_urls"] = urls
         record.pop("photos", None)
@@ -481,7 +512,7 @@ def build_complete_summary(records: list, cat0_name_l1: str, cat0_slug: str, dt:
     # 6. Build final summary
     return {
         "scraped_at": datetime.now(timezone.utc).isoformat(),
-        "data_scraped_date": dt.strftime("%Y-%m-%d"),
+        "data_scraped_date": (dt - timedelta(days=1)).strftime("%Y-%m-%d"),
         "saved_to_R2_date": dt.strftime("%Y-%m-%d"),
         "category": {
             "name_ar": cat0_name_ar or cat0_name_l1,
