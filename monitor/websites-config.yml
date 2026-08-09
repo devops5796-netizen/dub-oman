@@ -533,6 +533,15 @@ alert_thresholds:
   # Per-scraper observed file-size floors (KB) from real stats × 50%, floored at schema min
   # Used as a fast check even before trend history exists
   observed_min_file_size_kb: 
+    cars-for-sale: 5
+    cars-for-rent: 5
+    car-accessories: 5
+    motorcycles: 5
+    boats: 5
+    trucks: 5
+    other-vehicles: 5
+    spare-parts: 5
+    vip-car-plates: 5
     vehicles: 5
     properties: 5
     mobile-phones-accessories: 5
