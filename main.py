@@ -23,8 +23,7 @@ TARGET_DATE = (datetime.now(timezone.utc) - timedelta(days=1)).date()
 
 CATEGORY_SLUGS = [
     "vehicles",
-    "properties-for-rent",
-    "properties-for-sale",
+    "properties",
     "mobile-phones-accessories",
     "electronics-home-appliances",
     "home-garden",

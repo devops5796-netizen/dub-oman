@@ -22,7 +22,7 @@ from r2_uploader import upload_buffer
 THUMB_URL_TEMPLATE = "https://images.dubizzle.com.om/thumbnails/{photo_id}-800x600.webp"
 
 COLUMNS_TO_DROP = ['geo_point', 'price', 'title_l1', 'description_l1', 'slug_l1', 'coverPhoto',
-                   'external_link', 'external_link_l1', 'documentsTags', 'videoCount', 'documentCount'
+                   'external_link', 'external_link_l1', 'documentsTags', 'videoCount', 'documentCount',
                    'panoramaCount', 'location.lvl0','location.lvl1','location.lvl2', 'category.lvl0',
                    'category.lvl1','category.lvl2']
 
@@ -37,21 +37,12 @@ CATEGORY_GROUP_OVERRIDES = {
     "properties-for-sale": "properties",
 }
 
-
 def resolve_category_r2_path(cat0_slug: str, subcat_slug: str | None = None) -> str:
-    """
-    Slug-based R2 folder path for a top-level category, optionally nested
-    under a subcategory slug.
-
-    - properties-for-rent / properties-for-sale -> "properties/<own-slug>"
-    - vehicles + a subcat slug                  -> "vehicles/<subcat-slug>"
-    - everything else                           -> the category's own slug
-    """
     cat0_slug = cat0_slug or "uncategorized"
     if cat0_slug in CATEGORY_GROUP_OVERRIDES:
         return f"{CATEGORY_GROUP_OVERRIDES[cat0_slug]}/{cat0_slug}"
-    if cat0_slug == "vehicles" and subcat_slug:
-        return f"vehicles/{subcat_slug}"
+    if cat0_slug in ("vehicles", "properties") and subcat_slug:
+        return f"{cat0_slug}/{subcat_slug}"
     return cat0_slug
 
 TIMESTAMP_FIELDS = ("createdAt", "updatedAt", "timestamp")
@@ -229,7 +220,7 @@ def clean_and_group(df: pd.DataFrame, page=None, dt: datetime = None):
         urls = photo_urls(row.get("photos"))
         ad_id = str(row.get("id") or row.get("externalID") or "")
 
-        if cat0_slug == "vehicles":
+        if cat0_slug in ("vehicles", "properties"):
             subcat_slug = (cat1.get("slug") if cat1 else None) or "uncategorized"
             r2_category_path = resolve_category_r2_path(cat0_slug, subcat_slug)
         else:
@@ -633,9 +624,14 @@ def run(csv_path: str, date_str: str | None = None, skip_summary: bool = False):
             print(f"      JSON  -> {json_key}")
 
     elif has_any_subsubcategory(records):
-        r2_path = resolve_category_r2_path(cat0_slug)
         subcat_files = build_subcategory_files(records)
         for subcat_slug, sheets in subcat_files.items():
+            # Properties nested like vehicles: properties/properties-for-rent/...
+            if cat0_slug == "properties":
+                r2_path = resolve_category_r2_path(cat0_slug, subcat_slug)
+            else:
+                r2_path = resolve_category_r2_path(cat0_slug)
+            
             total_ads = sum(len(rows) for rows in sheets.values())
             print(f"  {subcat_slug}: {len(sheets)} sheet(s), {total_ads} ad(s)")
             
