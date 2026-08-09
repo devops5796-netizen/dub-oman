@@ -144,6 +144,28 @@ def clean_timestamp_fields(record: dict) -> dict:
     return record
 
 
+def _fetch_image_with_retry(img_url: str, attempts: int = 3, timeout: int = 20):
+    """GET an image URL with a couple of retries on transient failures
+    (timeouts, connection resets, 429/5xx). Returns the successful response
+    or None, printing the last status/exception seen."""
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            r = req.get(img_url, timeout=timeout)
+            if r.status_code == 200:
+                return r
+            last_error = f"HTTP {r.status_code}"
+            if r.status_code not in (429, 500, 502, 503, 504):
+                # Not worth retrying (e.g. a real 404) -- fail fast.
+                break
+        except Exception as e:
+            last_error = f"{type(e).__name__}: {e}"
+        if attempt < attempts:
+            time.sleep(1.5 * attempt)
+    print(f"    [ERROR] {img_url}: {last_error} (after {attempts} attempt(s))")
+    return None
+
+
 def download_images(images: list, id_prod: str, category_display: str, dt: datetime = None) -> list:
     r2_paths = []
     uploaded = 0
@@ -153,26 +175,26 @@ def download_images(images: list, id_prod: str, category_display: str, dt: datet
     file_prefix = id_prod or "unknown"
     for idx, img_url in enumerate(images, start=1):
         filename = f"{file_prefix}-{idx}.webp"
+        r = _fetch_image_with_retry(img_url)
+        if r is None:
+            failed += 1
+            continue
         try:
-            r = req.get(img_url, timeout=15)
-            if r.status_code == 200:
-                img = Image.open(io.BytesIO(r.content)).convert("RGB")
-                buf = io.BytesIO()
-                img.save(buf, format="WEBP", quality=75, method=6)
-                buf.seek(0)
-                r2_key = upload_buffer(
-                    buf,
-                    filename=filename,
-                    category_display=category_display,
-                    file_type="images",
-                    content_type="image/webp",
-                    dt=dt,
-                )
-                if r2_key:
-                    r2_paths.append(r2_key)
-                    uploaded += 1
-                else:
-                    failed += 1
+            img = Image.open(io.BytesIO(r.content)).convert("RGB")
+            buf = io.BytesIO()
+            img.save(buf, format="WEBP", quality=75, method=6)
+            buf.seek(0)
+            r2_key = upload_buffer(
+                buf,
+                filename=filename,
+                category_display=category_display,
+                file_type="images",
+                content_type="image/webp",
+                dt=dt,
+            )
+            if r2_key:
+                r2_paths.append(r2_key)
+                uploaded += 1
             else:
                 failed += 1
         except Exception as e:
@@ -301,17 +323,17 @@ def split_vehicle_records(records: list) -> tuple[dict, dict]:
 
 
 def group_by_subsubcategory(records: list) -> dict[str, list]:
-    """Group a single subcategory's own records by their cat2 (sub-subcategory),
-    falling back to cat1's own name when there's no deeper level."""
+    """Group a single subcategory's own records by their cat2 (sub-subcategory)
+    slug, falling back to cat1's own slug when there's no deeper level."""
     groups: dict[str, list] = {}
     for record in records:
         _, cat1, cat2 = parse_category(record.get("category"))
         if cat2:
-            name = clean_text(cat2.get("name_l1") or cat2.get("name") or "Other")
+            name = cat2.get("slug") or clean_text(cat2.get("name_l1") or cat2.get("name") or "other")
         elif cat1:
-            name = clean_text(cat1.get("name_l1") or cat1.get("name") or "Other")
+            name = cat1.get("slug") or clean_text(cat1.get("name_l1") or cat1.get("name") or "other")
         else:
-            name = "Other"
+            name = "other"
         groups.setdefault(name, []).append(record)
     return groups
 
@@ -330,11 +352,11 @@ def build_subcategory_files(records: list) -> dict[str, dict[str, list]]:
         _, cat1, cat2 = parse_category(record.get("category"))
         subcat_slug = (cat1.get("slug") if cat1 else None) or "uncategorized"
         if cat2:
-            sheet_name = clean_text(cat2.get("name_l1") or cat2.get("name") or subcat_slug)
+            sheet_name = cat2.get("slug") or clean_text(cat2.get("name_l1") or cat2.get("name") or subcat_slug)
         elif cat1:
-            sheet_name = clean_text(cat1.get("name_l1") or cat1.get("name") or subcat_slug)
+            sheet_name = cat1.get("slug") or clean_text(cat1.get("name_l1") or cat1.get("name") or subcat_slug)
         else:
-            sheet_name = "Uncategorized"
+            sheet_name = "uncategorized"
         files.setdefault(subcat_slug, {}).setdefault(sheet_name, []).append(record)
     return files
 
