@@ -2,7 +2,7 @@ meta:
   website: dubizzle.com.om/en/             # All scrapers target this domain
   country: Oman
   github_username: "devops5796-netizen"
-  repo:                                # Single repo confirmed from workspace
+  repo: dub-oman                       # Single repo confirmed from workspace
   run_environment: GitHub Actions      # All pipelines run on ubuntu-22.04
   r2_bucket: "data-collection-dl"                 # Your R2 bucket name (same as CF_R2_BUCKET_NAME secret)
   r2_prefix: "DOMAN"                    # Fixed prefix inside the bucket
@@ -11,17 +11,71 @@ meta:
 # ------------------------------------------------------------
 scrapers:
 
-  - name: vehicles
-    url: https://www.dubizzle.com.om/en/vehicles/
+  - name: cars-for-sale (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/cars-for-sale/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/vehicles"
+    r2_path: "{r2_bucket}/DOMAN/vehicles/cars-for-sale"
+    
+  - name: cars-for-rent (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/cars-for-rent/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/vehicles/cars-for-rent/"
 
-  - name: properties
-    url: https://www.dubizzle.com.om/en/properties/
+  - name: car-accessories (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/car-accessories/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/properties"
+    r2_path: "{r2_bucket}/DOMAN/vehicles/car-accessories"
+
+  - name: motorcycles (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/motorcycles/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/vehicles/motorcycles"
+
+  - name: boats (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/boats/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/vehicles/boats"
+
+  - name: trucks (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/trucks/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/vehicles/trucks"
+
+  - name: other-vehicles (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/other-vehicles/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/vehicles/other-vehicles"
+
+  - name: spare-parts (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/spare-parts/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/vehicles/spare-parts"
+
+  - name: vip-car-plates (vehicles)
+    url: https://www.dubizzle.com.om/en/vehicles/vip-car-plates/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/vehicles/vip-car-plates"
+
+  - name: properties-for-rent (properties)
+    url: https://www.dubizzle.com.om/en/properties/properties-for-rent/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/properties/properties-for-rent"
+
+  - name: properties-for-sale (properties)
+    url: https://www.dubizzle.com.om/en/properties/properties-for-sale/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/properties/properties-for-sale"
 
   - name: mobile-phones-accessories
     url: https://www.dubizzle.com.om/en/mobile-phones-accessories/
@@ -270,8 +324,7 @@ _col_motors_listings: &col_motors_listings
 excel_schema:
 
   # ── BATCH DOMAN ─────────────────────────────────────────────────
-
-  - scraper: vehicles
+  - scraper: cars-for-sale
     excel_file_pattern: "{brand_name}.xlsx"
     sheets:
       - name: "{car_type}"
@@ -279,7 +332,79 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: properties
+  - scraper: cars-for-rent
+    excel_file_pattern: "{brand_name}.xlsx"
+    sheets:
+      - name: "{car_type}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: car-accessories
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: motorcycles
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: boats
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+   
+  - scraper: trucks
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: other-vehicles
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: spare-parts
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+   
+  - scraper: vip-car-plates
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: properties-for-rent
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"                
+        required_columns: *col_standard_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: properties-for-sale
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
