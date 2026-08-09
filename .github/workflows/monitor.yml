@@ -99,4 +99,4 @@ jobs:
           DATE_PREFIX="2026-08-02"
           DATE_PREFIX=$(date -d "yesterday" +'%Y-%m-%d')
           echo "Generating report for: $DATE_PREFIX"
-          python monitor/build_monitor_data.py --prefix DOMAN --report-date --start "2026-08-02"  --end "2026-08-09"
+          python monitor/build_monitor_data.py --prefix DOMAN --range-report --start "2026-08-02"  --end "2026-08-09"
