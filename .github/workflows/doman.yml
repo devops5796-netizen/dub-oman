@@ -17,8 +17,7 @@ jobs:
       matrix:
         category:
           - vehicles
-          - properties-for-rent
-          - properties-for-sale
+          - properties
           - mobile-phones-accessories
           - electronics-home-appliances
           - home-garden
