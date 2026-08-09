@@ -22,35 +22,35 @@ jobs:
       - name: Install dependencies
         run: pip install boto3 openpyxl pyyaml python-dotenv pandas
 
-      # - name: Upload site.yml
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: |
-      #       python << 'EOF'
-      #       import boto3
-      #       import os
-      #       client = boto3.client('s3',
-      #                   endpoint_url=os.environ['CF_R2_ENDPOINT_URL'],
-      #                   aws_access_key_id=os.environ['CF_R2_ACCESS_KEY_ID'],
-      #                   aws_secret_access_key=os.environ['CF_R2_SECRET_ACCESS_KEY'],
-      #                   region_name='auto'
-      #               )
-      #       local_file = "monitor/site.yml" 
-      #       object_key = "monitor-sites/DKSA/site.yml"
-      #       client.upload_file(local_file, os.environ['CF_R2_BUCKET_NAME'], object_key)
-      #       print(f"Uploaded to {os.environ['CF_R2_BUCKET_NAME']}/{object_key}")
-      #       EOF
+      - name: Upload site.yml
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: |
+            python << 'EOF'
+            import boto3
+            import os
+            client = boto3.client('s3',
+                        endpoint_url=os.environ['CF_R2_ENDPOINT_URL'],
+                        aws_access_key_id=os.environ['CF_R2_ACCESS_KEY_ID'],
+                        aws_secret_access_key=os.environ['CF_R2_SECRET_ACCESS_KEY'],
+                        region_name='auto'
+                    )
+            local_file = "monitor/site.yml" 
+            object_key = "monitor-sites/DKSA/site.yml"
+            client.upload_file(local_file, os.environ['CF_R2_BUCKET_NAME'], object_key)
+            print(f"Uploaded to {os.environ['CF_R2_BUCKET_NAME']}/{object_key}")
+            EOF
 
-      # - name: Upload websites-config.yml
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: python monitor/build_monitor_data.py --prefix DKSA --upload-config
+      - name: Upload websites-config.yml
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: python monitor/build_monitor_data.py --prefix DOMAN --upload-config
 
       - name: Diagnose R2 paths
         env:
@@ -66,7 +66,7 @@ jobs:
       #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
       #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
       #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: python monitor/diagnose_excel_files.py --prefix DKSA --category Vehicles --date 2026-08-02
+      #   run: python monitor/diagnose_excel_files.py --prefix DOMAN --category Vehicles --date 2026-08-02
       
       
       # - name: Build stats (test mode)
@@ -75,28 +75,28 @@ jobs:
       #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
       #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
       #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: python monitor/build_monitor_data.py --prefix DKSA --build-stats --days 3 --no-save --output-stats test_stats.yml
+      #   run: python monitor/build_monitor_data.py --prefix DOMAN --build-stats --days 3 --no-save --output-stats test_stats.yml
 
       # - name: Show test stats
       #   run: cat test_stats.yml
 
 
-      # - name: Upload monitor_stats.yml
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: python monitor/build_monitor_data.py --prefix DKSA --build-stats --days 3
+      - name: Upload monitor_stats.yml
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: python monitor/build_monitor_data.py --prefix DOMAN --build-stats --days 7
 
-      # - name: Upload report.json
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: |
-      #     DATE_PREFIX="2026-08-02"
-      #     DATE_PREFIX=$(date -d "yesterday" +'%Y-%m-%d')
-      #     echo "Generating report for: $DATE_PREFIX"
-      #     python monitor/build_monitor_data.py --prefix DKSA --report-date "$DATE_PREFIX"
+      - name: Upload report.json
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: |
+          DATE_PREFIX="2026-08-02"
+          DATE_PREFIX=$(date -d "yesterday" +'%Y-%m-%d')
+          echo "Generating report for: $DATE_PREFIX"
+          python monitor/build_monitor_data.py --prefix DOMAN --report-date --start "2026-08-02"  --end "2026-08-09"

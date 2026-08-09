@@ -4,82 +4,93 @@ meta:
   github_username: "devops5796-netizen"
   repo:                                # Single repo confirmed from workspace
   run_environment: GitHub Actions      # All pipelines run on ubuntu-22.04
-  r2_bucket: "testing"                 # Your R2 bucket name (same as CF_R2_BUCKET_NAME secret)
+  r2_bucket: "data-collection-dl"                 # Your R2 bucket name (same as CF_R2_BUCKET_NAME secret)
   r2_prefix: "DOMAN"                    # Fixed prefix inside the bucket
-
 # ------------------------------------------------------------
 # SCRAPERS — 11 categories across 1 batche
 # ------------------------------------------------------------
 scrapers:
 
-  - name: Vehicles
-    url: https://www.dubizzle.sa/en/vehicles/
+  - name: vehicles
+    url: https://www.dubizzle.com.om/en/vehicles/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Vehicles"
+    r2_path: "{r2_bucket}/DOMAN/vehicles"
 
-  - name: Mobile Phones & Accessories
-    url: https://www.dubizzle.sa/en/mobile-phones-accessories/
+  - name: properties
+    url: https://www.dubizzle.com.om/en/properties/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Mobile Phones & Accessories"
+    r2_path: "{r2_bucket}/DOMAN/properties"
 
-  - name: Electronics & Home Appliances
-    url: https://www.dubizzle.sa/en/electronics-home-appliances/
+  - name: mobile-phones-accessories
+    url: https://www.dubizzle.com.om/en/mobile-phones-accessories/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Electronics & Home Appliances"
+    r2_path: "{r2_bucket}/DOMAN/mobile-phones-accessories"
 
-  - name: Home & Garden
-    url: https://www.dubizzle.sa/en/home-garden/
+  - name:  electronics-home-appliances
+    url: https://www.dubizzle.com.om/en/electronics-home-appliances/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Home & Garden"
+    r2_path: "{r2_bucket}/DOMAN/electronics-home-appliances"
 
-  - name: Fashion & Beauty
-    url: https://www.dubizzle.sa/en/fashion-beauty/
+  - name: home-garden
+    url: https://www.dubizzle.com.om/en/home-garden/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Fashion & Beauty"
+    r2_path: "{r2_bucket}/DOMAN/home-garden"
 
-  - name: Pets
-    url: https://www.dubizzle.sa/en/pets/
+  - name: fashion-beauty
+    url: https://www.dubizzle.com.om/en/fashion-beauty/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Pets"
+    r2_path: "{r2_bucket}/DOMAN/fashion-beauty"
 
-  - name: Kids & Babies
-    url: https://www.dubizzle.sa/en/kids-babies/
+  - name: pets
+    url: https://www.dubizzle.com.om/en/pets/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Kids & Babies"
+    r2_path: "{r2_bucket}/DOMAN/pets"
 
-  - name: Sporting Goods & Bikes
-    url: https://www.dubizzle.sa/en/sporting-goods-bikes/
+  - name: kids-babies
+    url: https://www.dubizzle.com.om/en/kids-babies/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Sporting Goods & Bikes"
+    r2_path: "{r2_bucket}/DOMAN/kids-babies"
 
-  - name: Hobbies, Music, Art & Books
-    url: https://www.dubizzle.sa/en/hobbies-music-art-books/
+  - name: sporting-goods-bikes
+    url: https://www.dubizzle.com.om/en/sporting-goods-bikes/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Hobbies, Music, Art & Books"
+    r2_path: "{r2_bucket}/DOMAN/sporting-goods-bikes"
 
-  - name: Jobs
-    url: https://www.dubizzle.sa/en/jobs-services/
+  - name: hobbies-music-art-books
+    url: https://www.dubizzle.com.om/en/hobbies-music-art-books/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Jobs"
+    r2_path: "{r2_bucket}/DOMAN/hobbies-music-art-books"
 
-  - name: Business & Industrial
-    url: https://www.dubizzle.sa/en/business-industrial/
+  - name: jobs-services
+    url: https://www.dubizzle.com.om/en/jobs-services/
     batch: "DOMAN"
     workflow_file: doman.yml
-    r2_path: "{r2_bucket}/DOMAN/Business & Industrial"
+    r2_path: "{r2_bucket}/DOMAN/jobs-services"
+
+  - name: business-industrial
+    url: https://www.dubizzle.com.om/en/business-industrial/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/business-industrial"
+
+  - name: services
+    url: https://www.dubizzle.com.om/en/services/
+    batch: "DOMAN"
+    workflow_file: doman.yml
+    r2_path: "{r2_bucket}/DOMAN/services"
 
   - name: motors
-    url: https://www.dubizzle.sa/en/motors/new-cars/
+    url: https://www.dubizzle.com.om/en/motors/new-cars/all-new-cars/
     batch: "DOMAN"
     workflow_file: doman.yml
     r2_path: "{r2_bucket}/DOMAN/motors"
@@ -105,8 +116,6 @@ _col_standard_listing: &col_standard_listing
   - activeProducts
   - canApplyBadges
   - category
-  - category.lvl0
-  - category.lvl1
   - contactInfo
   - createdAt
   - description
@@ -119,9 +128,6 @@ _col_standard_listing: &col_standard_listing
   - isSellerVerified
   - keywords
   - location
-  - location.lvl0
-  - location.lvl1
-  - location.lvl2
   - objectID
   - photoCount
   - photo_urls
@@ -138,13 +144,12 @@ _col_standard_listing: &col_standard_listing
   - updatedAt
   - userExternalID
 
+
 _col_vehicles_listing: &col_vehicles_listing
   - agency
   - activeProducts
   - canApplyBadges
   - category
-  - category.lvl0
-  - category.lvl1
   - contactInfo
   - createdAt
   - description
@@ -157,9 +162,6 @@ _col_vehicles_listing: &col_vehicles_listing
   - isSellerVerified
   - keywords
   - location
-  - location.lvl0
-  - location.lvl1
-  - location.lvl2
   - objectID
   - photoCount
   - photo_urls
@@ -180,9 +182,6 @@ _col_fashion_beauty_listing: &col_fashion_beauty_listing
   - activeProducts
   - canApplyBadges
   - category
-  - category.lvl0
-  - category.lvl1
-  - category.lvl2
   - contactInfo
   - createdAt
   - description
@@ -195,9 +194,6 @@ _col_fashion_beauty_listing: &col_fashion_beauty_listing
   - isSellerVerified
   - keywords
   - location
-  - location.lvl0
-  - location.lvl1
-  - location.lvl2
   - objectID
   - photoCount
   - photo_urls
@@ -218,9 +214,6 @@ _col_electronics_home_appliances_listing: &col_electronics_home_appliances_listi
   - activeProducts
   - canApplyBadges
   - category
-  - category.lvl0
-  - category.lvl1
-  - category.lvl2
   - contactInfo
   - createdAt
   - description
@@ -233,9 +226,6 @@ _col_electronics_home_appliances_listing: &col_electronics_home_appliances_listi
   - isSellerVerified
   - keywords
   - location
-  - location.lvl0
-  - location.lvl1
-  - location.lvl2
   - objectID
   - photoCount
   - photo_urls
@@ -281,7 +271,7 @@ excel_schema:
 
   # ── BATCH DOMAN ─────────────────────────────────────────────────
 
-  - scraper: Vehicles
+  - scraper: vehicles
     excel_file_pattern: "{brand_name}.xlsx"
     sheets:
       - name: "{car_type}"
@@ -289,7 +279,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Mobile Phones & Accessories
+  - scraper: properties
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -297,7 +287,15 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Electronics & Home Appliances
+  - scraper: mobile-phones-accessories
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"                
+        required_columns: *col_standard_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: electronics-home-appliances
     excel_file_pattern: "{subcategory_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -305,7 +303,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Home & Garden
+  - scraper: home-garden
     excel_file_pattern: "{subcategory_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -313,7 +311,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Fashion & Beauty
+  - scraper: fashion-beauty
     excel_file_pattern: "{subcategory_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -321,7 +319,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Pets
+  - scraper: pets
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -329,7 +327,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Kids & Babies
+  - scraper: kids-babies
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -337,7 +335,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Sporting Goods & Bikes
+  - scraper: sporting-goods-bikes
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -345,7 +343,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Hobbies, Music, Art & Books
+  - scraper: hobbies-music-art-books
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -353,7 +351,7 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Jobs
+  - scraper: jobs-services
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -361,7 +359,15 @@ excel_schema:
         row_count_range: [1, 1]
     min_file_size_kb: 5
 
-  - scraper: Business & Industrial
+  - scraper: business-industrial
+    excel_file_pattern: "{category_slug}.xlsx"
+    sheets:
+      - name: "{child_category or Main}"                
+        required_columns: *col_standard_listing
+        row_count_range: [1, 1]
+    min_file_size_kb: 5
+
+  - scraper: services
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
@@ -402,17 +408,19 @@ alert_thresholds:
   # Per-scraper observed file-size floors (KB) from real stats × 50%, floored at schema min
   # Used as a fast check even before trend history exists
   observed_min_file_size_kb: 
-    Vehicles: 5
-    Mobile Phones & Accessories: 5
-    Electronics & Home Appliances: 5
-    Home & Garden: 5
-    Fashion & Beauty: 5
-    Pets: 5
-    Kids & Babies: 5 
-    Sporting Goods & Bikes: 5
-    Hobbies, Music, Art & Books: 5
-    Jobs: 5
-    Business & Industrial: 5
+    vehicles: 5
+    properties: 5
+    mobile-phones-accessories: 5
+    electronics-home-appliances: 5
+    home-garden: 5
+    fashion-beauty: 5
+    pets: 5
+    kids-babies: 5 
+    sporting-goods-bikes: 5
+    hobbies-music-art-books: 5
+    jobs-services: 5
+    business-industrial: 5
+    services: 5
     motors: 5
 
   channels:
