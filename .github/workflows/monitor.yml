@@ -39,7 +39,7 @@ jobs:
                         region_name='auto'
                     )
             local_file = "monitor/site.yml" 
-            object_key = "monitor-sites/DKSA/site.yml"
+            object_key = "monitor-sites/DOMAN/site.yml"
             client.upload_file(local_file, os.environ['CF_R2_BUCKET_NAME'], object_key)
             print(f"Uploaded to {os.environ['CF_R2_BUCKET_NAME']}/{object_key}")
             EOF
@@ -96,7 +96,6 @@ jobs:
           CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
           CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
         run: |
-          DATE_PREFIX="2026-08-02"
-          DATE_PREFIX=$(date -d "yesterday" +'%Y-%m-%d')
+          DATE_PREFIX=$(date +'%Y-%m-%d')
           echo "Generating report for: $DATE_PREFIX"
-          python monitor/build_monitor_data.py --prefix DOMAN --range-report --start "2026-08-02"  --end "2026-08-09"
+          python monitor/build_monitor_data.py --prefix DOMAN --report-date "$DATE_PREFIX"
