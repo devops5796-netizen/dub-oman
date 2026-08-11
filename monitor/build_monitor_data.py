@@ -285,7 +285,11 @@ def get_stats_for_scraper(
         log.warning(f"  {scraper_name}: no r2_path in config — skipping")
         return {}
     
-    stats = {}
+    stats = existing_stats.get(scraper_name, {
+        "observed_dates": [],
+        "file_size_kb": {"min": None, "max": None, "last": None},
+        "sheets": {},
+    }).copy()
     
     for date_str in dates_to_check:
         excel_files = list_scraper_excel_files(client, bucket, r2_base, category, date_str)
@@ -301,19 +305,17 @@ def get_stats_for_scraper(
             inspected = inspect_excel(raw, xlsx_meta["key"])
             inspected["size_bytes"] = xlsx_meta["size_bytes"]
             
+            wrapper = {scraper_name: stats}
             accumulate_stats(
-                stats,
+                wrapper,
                 scraper_name,
                 inspected,
                 xlsx_meta["size_bytes"],
                 date_str
             )
+            stats = wrapper[scraper_name]
     
-    if scraper_name in existing_stats:
-        return merge_stats(existing_stats[scraper_name], stats)
-    else:
-        return stats
-
+    return stats
 
 def get_categories_ads(
     client,
@@ -601,27 +603,24 @@ def build_monitor_stats(
     log.info(f"Processing {len(scrapers)} scrapers over {days_lookback} days...")
     
     stats = dict(existing_stats)
-    
+
     for scraper_config in scrapers:
-        scraper_name = scraper_config.get("name")
-        if not scraper_name:
-            continue
-        
-        log.info(f"Processing {scraper_name}...")
-        
-        scraper_stats = get_stats_for_scraper(
-            client,
-            bucket,
-            scraper_name,
-            scraper_config,
-            dates_to_check,
-            existing_stats
-        )
-        
-        if scraper_stats:
-            if scraper_name in stats:
-                stats[scraper_name] = merge_stats(stats[scraper_name], scraper_stats)
-            else:
+            scraper_name = scraper_config.get("name")
+            if not scraper_name:
+                continue
+            
+            log.info(f"Processing {scraper_name}...")
+            
+            scraper_stats = get_stats_for_scraper(
+                client,
+                bucket,
+                scraper_name,
+                scraper_config,
+                dates_to_check,
+                existing_stats
+            )
+            
+            if scraper_stats:
                 stats[scraper_name] = scraper_stats
     
     # Save stats using monitor_r2
