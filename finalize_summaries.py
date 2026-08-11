@@ -101,7 +101,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Finalize summaries with workflow duration")
     parser.add_argument("--summaries-dir", default="summaries/", help="Directory with summary placeholders")
     parser.add_argument("--date", required=True, help="YYYY-MM-DD data date")
-    parser.add_argument("--workflow", default=None, help="Workflow name (dksa, motors, etc.)")
+    parser.add_argument("--workflow", default=None, help="Workflow name (DOMAN, motors, etc.)")
     args = parser.parse_args()
     
     finalize_summaries(args.summaries_dir, args.date, args.workflow)

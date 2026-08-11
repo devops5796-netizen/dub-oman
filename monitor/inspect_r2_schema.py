@@ -128,14 +128,14 @@ def accumulate_stats(
 
 def r2_base_prefix(r2_path_raw: str) -> Tuple[str, Optional[str]]:
     """
-    Convert config r2_path like '{r2_bucket}/DKSA/Vehicles' into (base, category).
+    Convert config r2_path like '{r2_bucket}/DOMAN/Vehicles' into (base, category).
 
     The category is a subfolder that sits UNDER the date partition
-    (DKSA/year=.../month=.../day=.../Vehicles/excel/...), so callers need
+    (DOMAN/year=.../month=.../day=.../Vehicles/excel/...), so callers need
     both pieces to build a correct, scraper-specific prefix.
 
-        '{r2_bucket}/DKSA/Vehicles' -> ('DKSA', 'Vehicles')
-        '{r2_bucket}/DKSA'          -> ('DKSA', None)
+        '{r2_bucket}/DOMAN/Vehicles' -> ('DOMAN', 'Vehicles')
+        '{r2_bucket}/DOMAN'          -> ('DOMAN', None)
     """
     path = r2_path_raw.strip()
     if path.startswith("{"):
@@ -153,8 +153,8 @@ def partition_date_for_data_date(dt: datetime) -> datetime:
     """
     Return the partition date for the given data date.
     
-    For DKSA, the data is stored under:
-    DKSA/year=YYYY/month=MM/day=DD/{Category}/excel/
+    For DOMAN, the data is stored under:
+    DOMAN/year=YYYY/month=MM/day=DD/{Category}/excel/
     
     So we use the data date directly.
     """
@@ -167,7 +167,7 @@ def excel_prefixes_for_date(base: str, category: Optional[str], dt: datetime) ->
     scraper's own category folder.
 
     Actual structure:
-    DKSA/year=2026/month=08/day=02/Vehicles/excel/Audi.xlsx
+    DOMAN/year=2026/month=08/day=02/Vehicles/excel/Audi.xlsx
     """
     base = base.strip("/")
     date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"

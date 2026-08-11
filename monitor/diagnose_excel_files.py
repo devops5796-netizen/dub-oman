@@ -7,7 +7,7 @@ build_monitor_data.py uses (r2_base_prefix -> excel_prefixes_for_date ->
 list_excel_files) so we can see exactly what it finds (or doesn't).
 
 Usage:
-    python diagnose_excel_files.py --prefix DKSA --category Vehicles --date 2026-08-02
+    python diagnose_excel_files.py --prefix DOMAN --category Vehicles --date 2026-08-02
 """
 
 import argparse
@@ -40,7 +40,7 @@ def build_client():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--prefix", default="DKSA")
+    parser.add_argument("--prefix", default="DOMAN")
     parser.add_argument("--category", required=True, help="e.g. Vehicles")
     parser.add_argument("--date", required=True, help="YYYY-MM-DD")
     args = parser.parse_args()

@@ -115,8 +115,11 @@ python build_monitor_data.py --prefix DOMAN --build-stats --days 30
 # FILE LOCATIONS IN R2
 # =====================================================================
 # Config:   DOMAN/monitor/websites-config.yml
-# Stats:    DOMAN/monitor/monitor_stats.yml
 # Report:   DOMAN/monitor/YYYY-MM-DD/report.json
+#   Includes scrapers[].r2_size_bytes, scrapers[].r2_daily_size,
+#   total_r2_size_bytes, total_r2_daily_size
+# Stats:    DOMAN/monitor/monitor_stats.yml
+#   Per-scraper r2_size_bytes / r2_daily_size + overview block with totals
 
 # =====================================================================
 # COMMON ERRORS & SOLUTIONS
@@ -179,7 +182,14 @@ from ads_counter import (
     count_ads_from_downloads,
 )
 
-from r2_file_counter import count_site_r2_files
+from r2_file_counter import (
+    count_site_r2_files,
+    sum_site_r2_bytes,
+    collect_scraper_r2_sizes,
+    collect_daily_scraper_r2_sizes,
+    sum_r2_bytes,
+    date_partition_prefix,
+)
 
 log = logging.getLogger("monitor")
 
@@ -239,6 +249,12 @@ def merge_stats(existing: Dict, new: Dict) -> Dict:
         if merged["file_size_kb"]["min"] == float('inf'):
             merged["file_size_kb"]["min"] = None
     
+    if "r2_size_bytes" in new:
+        merged["r2_size_bytes"] = new.get("r2_size_bytes", merged.get("r2_size_bytes", 0))
+
+    if "r2_daily_size" in new:
+        merged["r2_daily_size"] = new.get("r2_daily_size", merged.get("r2_daily_size", 0))
+
     if "sheets" in new:
         merged_sheets = dict(merged.get("sheets", {}))
         for sheet_name, new_sheet_data in new["sheets"].items():
@@ -451,6 +467,102 @@ def collect_request_metrics(
     
     return metrics
 
+
+def scraper_category_map(scraper_configs: List[Dict]) -> Dict[str, str]:
+    """Map scraper name -> category path under the date partition."""
+    result = {}
+    for scraper_config in scraper_configs:
+        scraper_name = scraper_config.get("name")
+        if not scraper_name:
+            continue
+        r2_base, category = r2_base_prefix(scraper_config.get("r2_path", ""))
+        if r2_base and category:
+            result[scraper_name] = category
+    return result
+
+
+def scraper_r2_base(scraper_configs: List[Dict]) -> Optional[str]:
+    """Return the shared R2 base prefix (e.g. DOMAN) from scraper configs."""
+    for scraper_config in scraper_configs:
+        r2_base, category = r2_base_prefix(scraper_config.get("r2_path", ""))
+        if r2_base:
+            return r2_base
+    return None
+
+
+def collect_r2_size_metrics(
+    client,
+    bucket: str,
+    scraper_configs: List[Dict],
+    target_date: datetime,
+    r2_prefix: str,
+) -> Dict[str, Any]:
+    """
+    Collect cumulative and daily R2 storage metrics per scraper.
+
+    Returns:
+      scrapers: [{scraper, r2_size_bytes, r2_daily_size}, ...]
+      total_r2_size_bytes: site-wide cumulative bytes
+      total_r2_daily_size: bytes written on target_date partition
+    """
+    scraper_categories = scraper_category_map(scraper_configs)
+    base = scraper_r2_base(scraper_configs)
+
+    if not scraper_categories or not base:
+        return {
+            "scrapers": [],
+            "total_r2_size_bytes": 0,
+            "total_r2_daily_size": 0,
+        }
+
+    cumulative = collect_scraper_r2_sizes(client, bucket, base, scraper_categories)
+    daily = collect_daily_scraper_r2_sizes(
+        client, bucket, base, scraper_categories, target_date
+    )
+
+    scrapers = [
+        {
+            "scraper": name,
+            "r2_size_bytes": cumulative.get(name, 0),
+            "r2_daily_size": daily.get(name, 0),
+        }
+        for name in sorted(scraper_categories)
+    ]
+
+    total_r2_size_bytes = sum_site_r2_bytes(client, bucket, r2_prefix)
+    total_r2_daily_size = sum_r2_bytes(
+        client, bucket, date_partition_prefix(base, target_date)
+    )
+
+    return {
+        "scrapers": scrapers,
+        "total_r2_size_bytes": total_r2_size_bytes,
+        "total_r2_daily_size": total_r2_daily_size,
+    }
+
+
+def apply_r2_size_to_stats(
+    stats: Dict,
+    r2_metrics: Dict[str, Any],
+) -> None:
+    """Merge R2 size fields into per-scraper stats entries."""
+    for entry in r2_metrics.get("scrapers", []):
+        scraper_name = entry.get("scraper")
+        if not scraper_name:
+            continue
+        scraper_stats = stats.setdefault(scraper_name, {})
+        scraper_stats["r2_size_bytes"] = entry.get("r2_size_bytes", 0)
+        scraper_stats["r2_daily_size"] = entry.get("r2_daily_size", 0)
+
+
+def build_r2_overview(r2_metrics: Dict[str, Any]) -> Dict[str, Any]:
+    """Overview block for monitor_stats.yml (dashboard consumption)."""
+    return {
+        "scrapers": r2_metrics.get("scrapers", []),
+        "total_r2_size_bytes": r2_metrics.get("total_r2_size_bytes", 0),
+        "total_r2_daily_size": r2_metrics.get("total_r2_daily_size", 0),
+    }
+
 # ── CONFIG FUNCTIONS ──────────────────────────────────────────────────────
 
 def load_local_config() -> Dict:
@@ -603,25 +715,41 @@ def build_monitor_stats(
     log.info(f"Processing {len(scrapers)} scrapers over {days_lookback} days...")
     
     stats = dict(existing_stats)
-
+    
     for scraper_config in scrapers:
-            scraper_name = scraper_config.get("name")
-            if not scraper_name:
-                continue
-            
-            log.info(f"Processing {scraper_name}...")
-            
-            scraper_stats = get_stats_for_scraper(
-                client,
-                bucket,
-                scraper_name,
-                scraper_config,
-                dates_to_check,
-                existing_stats
-            )
-            
-            if scraper_stats:
-                stats[scraper_name] = scraper_stats
+        scraper_name = scraper_config.get("name")
+        if not scraper_name:
+            continue
+        
+        log.info(f"Processing {scraper_name}...")
+        
+        scraper_stats = get_stats_for_scraper(
+            client,
+            bucket,
+            scraper_name,
+            scraper_config,
+            dates_to_check,
+            existing_stats
+        )
+        
+        if scraper_stats:
+            stats[scraper_name] = scraper_stats
+
+    try:
+        latest_date = datetime.strptime(dates_to_check[0], "%Y-%m-%d")
+        r2_metrics = collect_r2_size_metrics(
+            client, bucket, scrapers, latest_date, r2_prefix
+        )
+        apply_r2_size_to_stats(stats, r2_metrics)
+        stats["overview"] = build_r2_overview(r2_metrics)
+        log.info(
+            "R2 storage: %s bytes total, %s bytes on %s",
+            r2_metrics.get("total_r2_size_bytes", 0),
+            r2_metrics.get("total_r2_daily_size", 0),
+            latest_date.strftime("%Y-%m-%d"),
+        )
+    except Exception as exc:
+        log.warning(f"Failed to collect R2 size metrics for stats: {exc}")
     
     # Save stats using monitor_r2
     log.info(f"Saving stats to {stats_key}...")
@@ -696,6 +824,14 @@ def build_monitor_report(
         report["total_r2_files"] = total_files
     except Exception:
         pass
+
+    try:
+        r2_metrics = collect_r2_size_metrics(
+            client, bucket, scrapers, dt, r2_prefix
+        )
+        report.update(r2_metrics)
+    except Exception as exc:
+        log.warning(f"Failed to collect R2 size metrics for report: {exc}")
     
     if save_to_r2:
         partition_date = dt.strftime("%Y-%m-%d")
@@ -817,7 +953,7 @@ Examples:
     )
     
     # Config options
-    parser.add_argument("--prefix", required=True, help="R2 prefix (e.g., DKSA or 4sale-data)")
+    parser.add_argument("--prefix", required=True, help="R2 prefix (e.g., DOMAN or 4sale-data)")
     parser.add_argument("--show-config", action="store_true", help="Show local config")
     parser.add_argument("--upload-config", action="store_true", help="Upload local config to R2")
     parser.add_argument("--force", action="store_true", help="Force upload (always true for local config)")

@@ -1,7 +1,7 @@
 """
 diagnose_r2_paths.py
 =====================
-Quick standalone check: what actually exists under DKSA/year=.../month=.../day=.../
+Quick standalone check: what actually exists under DOMAN/year=.../month=.../day=.../
 in R2 right now, for a given date (or a few recent dates).
 
 Run it directly in the GitHub Actions runner (or locally with the same env
@@ -9,8 +9,8 @@ vars) to compare the REAL category folder names against what
 websites-config.yml expects.
 
 Usage:
-    python diagnose_r2_paths.py --prefix DKSA --date 2026-08-02
-    python diagnose_r2_paths.py --prefix DKSA --days 5   # scans last 5 days
+    python diagnose_r2_paths.py --prefix DOMAN --date 2026-08-02
+    python diagnose_r2_paths.py --prefix DOMAN --days 5   # scans last 5 days
 """
 
 import argparse
@@ -45,7 +45,7 @@ def list_immediate_children(client, bucket, prefix):
     children = set()
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter="/"):
         for cp in page.get("CommonPrefixes", []):
-            # cp["Prefix"] looks like "DKSA/year=2026/month=08/day=02/Vehicles/"
+            # cp["Prefix"] looks like "DOMAN/year=2026/month=08/day=02/Vehicles/"
             child = cp["Prefix"][len(prefix):].rstrip("/")
             children.add(child)
     return sorted(children)
@@ -53,7 +53,7 @@ def list_immediate_children(client, bucket, prefix):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--prefix", default="DKSA")
+    parser.add_argument("--prefix", default="DOMAN")
     parser.add_argument("--date", help="Single date YYYY-MM-DD to check")
     parser.add_argument("--days", type=int, default=1, help="How many recent days to scan if --date not given")
     args = parser.parse_args()
