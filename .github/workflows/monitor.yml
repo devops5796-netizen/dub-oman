@@ -22,35 +22,35 @@ jobs:
       - name: Install dependencies
         run: pip install boto3 openpyxl pyyaml python-dotenv pandas
 
-      - name: Upload site.yml
-        env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-        run: |
-            python << 'EOF'
-            import boto3
-            import os
-            client = boto3.client('s3',
-                        endpoint_url=os.environ['CF_R2_ENDPOINT_URL'],
-                        aws_access_key_id=os.environ['CF_R2_ACCESS_KEY_ID'],
-                        aws_secret_access_key=os.environ['CF_R2_SECRET_ACCESS_KEY'],
-                        region_name='auto'
-                    )
-            local_file = "monitor/site.yml" 
-            object_key = "monitor-sites/DOMAN/site.yml"
-            client.upload_file(local_file, os.environ['CF_R2_BUCKET_NAME'], object_key)
-            print(f"Uploaded to {os.environ['CF_R2_BUCKET_NAME']}/{object_key}")
-            EOF
+      # - name: Upload site.yml
+      #   env:
+      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+      #   run: |
+      #       python << 'EOF'
+      #       import boto3
+      #       import os
+      #       client = boto3.client('s3',
+      #                   endpoint_url=os.environ['CF_R2_ENDPOINT_URL'],
+      #                   aws_access_key_id=os.environ['CF_R2_ACCESS_KEY_ID'],
+      #                   aws_secret_access_key=os.environ['CF_R2_SECRET_ACCESS_KEY'],
+      #                   region_name='auto'
+      #               )
+      #       local_file = "monitor/site.yml" 
+      #       object_key = "monitor-sites/DOMAN/site.yml"
+      #       client.upload_file(local_file, os.environ['CF_R2_BUCKET_NAME'], object_key)
+      #       print(f"Uploaded to {os.environ['CF_R2_BUCKET_NAME']}/{object_key}")
+      #       EOF
 
-      - name: Upload websites-config.yml
-        env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-        run: python monitor/build_monitor_data.py --prefix DOMAN --upload-config
+      # - name: Upload websites-config.yml
+      #   env:
+      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+      #   run: python monitor/build_monitor_data.py --prefix DOMAN --upload-config
 
       - name: Diagnose R2 paths
         env:
@@ -98,4 +98,4 @@ jobs:
         run: |
           DATE_PREFIX=$(date +'%Y-%m-%d')
           echo "Generating report for: $DATE_PREFIX"
-          python monitor/build_monitor_data.py --prefix DOMAN --report-date 2026-08-10
+          python monitor/build_monitor_data.py --prefix DOMAN --report-date "$DATE_PREFIX"
