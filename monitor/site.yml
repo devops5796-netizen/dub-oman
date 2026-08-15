@@ -8,7 +8,7 @@ repo: dub-oman
 run_place: github
 uses_proxy: false
 r2_prefix: DOMAN
-scrapers: 13
+scrapers: 23
 schedule: daily
 data_format: xlsx
 workflows:
