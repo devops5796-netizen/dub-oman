@@ -1,20 +1,29 @@
+"""
+ads_counter.py
+==============
+Count unique ads per scraper for the monitor hub dashboard.
+
+Priority:
+  1. Unique listing IDs from Excel data sheets (deduped across files/sheets)
+  2. total_listings / total_ads from JSON summary in summary/
+  3. Sum of Excel data-row counts (excluding Info / No Data sheets)
+"""
+
+from __future__ import annotations
+
 import ast
 import io
-import re
-import logging
 import json
+import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 
-TOTAL_LISTINGS_KEYS = (
-    "total_listings",
-    "total_ads",
-    "listings_count",
-)
-SKIP_SHEETS = frozenset({"info", "no data"})
+log = logging.getLogger("monitor")
 
+SKIP_SHEETS = frozenset({"info", "no data"})
 ID_COLUMN_NAMES = frozenset({
     "id",
     "listing id",
@@ -24,7 +33,6 @@ ID_COLUMN_NAMES = frozenset({
     "ad_id",
     "ad id",
 })
-
 PHONE_COLUMN_NAMES = frozenset({
     "phone",
     "phone number",
@@ -36,9 +44,9 @@ PHONE_COLUMN_NAMES = frozenset({
     "contacts",
     "contact_no",
     "contact no",
-    "contact_info"
+    "main_branch_phone",
+    "main branch phone",
 })
-
 PHONE_COLUMN_CANONICAL = frozenset({
     "phone",
     "phonenumber",
@@ -46,30 +54,20 @@ PHONE_COLUMN_CANONICAL = frozenset({
     "whatsappphone",
     "contacts",
     "contactno",
-    "contact_info"
+    "mainbranchphone",
 })
+TOTAL_LISTINGS_KEYS = (
+    "total_listings",
+    "total_ads",
+    "listings_count",
+)
 
-log = logging.getLogger("monitor")
 
+def _int_or_none(value: Any) -> Optional[int]:
+    if isinstance(value, (int, float)):
+        return int(value)
+    return None
 
-def _json_prefixes_for_date(base: str, category: Optional[str], dt: datetime) -> List[str]:
-    """
-    Build the R2 date-partition prefix for JSON discovery, scoped to one
-    scraper's own category folder.
-
-    Actual structure:
-    DOMAN/year=2026/month=08/day=02/Vehicles/summary/summary.json
-    """
-    base = base.strip("/")
-    date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"
-
-    if category:
-        prefix = f"{base}/{date_part}/{category.strip('/')}/summary/"
-    else:
-        # No category known — fall back to the broad date folder (legacy behavior).
-        prefix = f"{base}/{date_part}/"
-
-    return [prefix]
 
 def _first_non_empty_str(row: Dict[str, Any], keys: Tuple[str, ...]) -> str:
     for key in keys:
@@ -81,10 +79,6 @@ def _first_non_empty_str(row: Dict[str, Any], keys: Tuple[str, ...]) -> str:
             return text
     return ""
 
-def _int_or_none(value: Any) -> Optional[int]:
-    if isinstance(value, (int, float)):
-        return int(value)
-    return None
 
 def _row_count_from_json_item(item: Dict[str, Any]) -> Optional[int]:
     for key in (
@@ -100,6 +94,7 @@ def _row_count_from_json_item(item: Dict[str, Any]) -> Optional[int]:
         if val is not None and val >= 0:
             return val
     return None
+
 
 def extract_subcategory_breakdown(data: Any) -> List[Dict[str, Any]]:
     """
@@ -137,7 +132,7 @@ def extract_subcategory_breakdown(data: Any) -> List[Dict[str, Any]]:
 
             category_name = _first_non_empty_str(
                 item,
-                ("name_en", "name", "name_ar", "name_l1", "category", "category_name", "slug"),
+                ("name_en", "name", "name_ar", "category", "category_name", "slug"),
             )
             category_count = _row_count_from_json_item(item)
 
@@ -148,7 +143,7 @@ def extract_subcategory_breakdown(data: Any) -> List[Dict[str, Any]]:
                         continue
                     child_name = _first_non_empty_str(
                         child,
-                        ("name_en", "name", "name_ar", "name_l1", "model", "brand", "slug"),
+                        ("name_en", "name", "name_ar", "model", "brand", "slug"),
                     )
                     if not child_name:
                         continue
@@ -163,7 +158,6 @@ def extract_subcategory_breakdown(data: Any) -> List[Dict[str, Any]]:
                     bucket["sheets_count"] += 1
                 continue
 
-            # Flat category-only summaries still provide useful subcategory-level rows.
             if category_name and category_count is not None:
                 key = (category_name, "")
                 bucket = agg.setdefault(key, {"ads_count": 0, "sheet_rows": 0, "sheets_count": 0})
@@ -183,6 +177,44 @@ def extract_subcategory_breakdown(data: Any) -> List[Dict[str, Any]]:
         })
     return rows
 
+
+def _json_prefixes_for_date(base: str, category: Optional[str], dt: datetime) -> List[str]:
+    """
+    Build R2 prefix for JSON summaries.
+    Structure: DKSA/year=2026/month=08/day=15/vehicles/cars-for-sale/summary/
+    """
+    base = base.strip("/")
+    date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"
+    
+    if category:
+        prefix = f"{base}/{date_part}/{category.strip('/')}/summary/"
+    else:
+        prefix = f"{base}/{date_part}/summary/"
+    
+    return [prefix]
+
+
+def _find_id_column(columns) -> Optional[str]:
+    for col in columns:
+        if str(col).strip().lower() in ID_COLUMN_NAMES:
+            return col
+    return None
+
+
+def _normalize_header(name: Any) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(name).strip().lower())
+
+
+def _find_phone_columns(columns) -> List[str]:
+    out: List[str] = []
+    for col in columns:
+        raw = str(col).strip().lower()
+        canon = _normalize_header(col)
+        if raw in PHONE_COLUMN_NAMES or canon in PHONE_COLUMN_CANONICAL:
+            out.append(col)
+    return out
+
+
 def _extract_phone_tokens(value: Any) -> List[str]:
     if value is None:
         return []
@@ -197,7 +229,6 @@ def _extract_phone_tokens(value: Any) -> List[str]:
     if not text or text.lower() in {"nan", "none", "null"}:
         return []
 
-    # Some sheets store contacts as JSON/list string, e.g. ["965..."]
     if (text.startswith("[") and text.endswith("]")) or (text.startswith("{") and text.endswith("}")):
         try:
             parsed = ast.literal_eval(text)
@@ -207,6 +238,7 @@ def _extract_phone_tokens(value: Any) -> List[str]:
 
     return re.findall(r"\d+", text)
 
+
 def _normalized_phones(value: Any) -> List[str]:
     phones: List[str] = []
     for token in _extract_phone_tokens(value):
@@ -215,18 +247,8 @@ def _normalized_phones(value: Any) -> List[str]:
             phones.append(digits)
     return phones
 
-def _find_id_column(columns) -> Optional[str]:
-    for col in columns:
-        if str(col).strip().lower() in ID_COLUMN_NAMES:
-            return col
-    return None
 
 def count_ads_from_excel_bytes(raw: bytes) -> Tuple[Optional[int], int, bool]:
-    """
-    Return (unique_ads, total_rows, found_id_column).
-
-    unique_ads is None when no ID column exists on any data sheet.
-    """
     unique_ids: Set[Any] = set()
     total_rows = 0
     found_id = False
@@ -260,18 +282,6 @@ def count_ads_from_excel_bytes(raw: bytes) -> Tuple[Optional[int], int, bool]:
 
     unique_ads = len(unique_ids) if found_id else None
     return unique_ads, total_rows, found_id
-
-def _normalize_header(name: Any) -> str:
-    return re.sub(r"[^a-z0-9]", "", str(name).strip().lower())
-
-def _find_phone_columns(columns) -> List[str]:
-    out: List[str] = []
-    for col in columns:
-        raw = str(col).strip().lower()
-        canon = _normalize_header(col)
-        if raw in PHONE_COLUMN_NAMES or canon in PHONE_COLUMN_CANONICAL:
-            out.append(col)
-    return out
 
 
 def _hour_from_date_published(value: Any) -> Optional[int]:
@@ -330,8 +340,8 @@ def _count_date_published_hours_in_excel(raw: bytes) -> Dict[int, int]:
 
     return hour_counts
 
+
 def count_ads_from_downloads(downloads: List[Tuple[str, bytes]]) -> Dict[str, Any]:
-    """Aggregate ad counts from in-memory Excel downloads."""
     combined_ids: Set[Any] = set()
     combined_phones: Set[str] = set()
     total_rows = 0
@@ -347,7 +357,6 @@ def count_ads_from_downloads(downloads: List[Tuple[str, bytes]]) -> Dict[str, An
 
         if has_id and unique_ads is not None:
             found_id = True
-            # Re-read IDs for cross-file dedup (small daily files)
             try:
                 xl = pd.ExcelFile(io.BytesIO(raw), engine="openpyxl")
                 for sheet_name in xl.sheet_names:
@@ -370,7 +379,6 @@ def count_ads_from_downloads(downloads: List[Tuple[str, bytes]]) -> Dict[str, An
             except Exception:
                 pass
 
-        # Even if no ID columns exist, still capture unique phones from phone column.
         if not has_id:
             try:
                 xl = pd.ExcelFile(io.BytesIO(raw), engine="openpyxl")
@@ -414,8 +422,8 @@ def count_ads_from_downloads(downloads: List[Tuple[str, bytes]]) -> Dict[str, An
         "date_published_hour_counts": date_published_hour_counts,
     }
 
+
 def extract_total_from_json(data: Any) -> Optional[int]:
-    """Extract a total listing count from known JSON summary shapes."""
     if not isinstance(data, dict):
         return None
 
@@ -453,19 +461,16 @@ def extract_total_from_json(data: Any) -> Optional[int]:
 
     return None
 
+
 def load_json_summaries(
     client,
     bucket: str,
     r2_base: str,
+    category: Optional[str],
     partition_dt: datetime,
-    category: Optional[str] = None,
 ) -> Tuple[Optional[int], Optional[str], List[Dict[str, Any]]]:
     """
-    List json-files/ under the scraper's own category partition and return
-    (total, source_key, breakdown).
-
-    When multiple JSON files exist, uses the largest total_listings value
-    (handles upload-summary vs summary files).
+    List summary/ under the scraper partition and return (total, source_key).
     """
     best_total: Optional[int] = None
     best_key: Optional[str] = None
@@ -502,10 +507,47 @@ def load_json_summaries(
     return best_total, best_key, best_breakdown
 
 
-if __name__ == "__main__":
-    import json
+def count_scraper_ads(
+    client,
+    bucket: str,
+    r2_base: str,
+    category: Optional[str],
+    partition_dt: datetime,
+    downloads: List[Tuple[str, bytes]],
+) -> Dict[str, Any]:
+    """
+    Count unique ads for one scraper.
 
-    with open("try.json", "r", encoding="utf-8") as f:
-       data = json.load(f)
-    rows = extract_subcategory_breakdown(data)
-    print(rows)
+    Returns dict with unique_ads, total_rows, ads_source, json_summary_key.
+    """
+    excel_stats = count_ads_from_downloads(downloads)
+
+    json_total, json_key, json_breakdown = load_json_summaries(
+        client, bucket, r2_base, category, partition_dt
+    )
+
+    if excel_stats["ads_source"] == "excel_ids":
+        result = dict(excel_stats)
+        result["json_summary_key"] = json_key
+        result["json_total_listings"] = json_total
+        result["subcategory_breakdown"] = json_breakdown
+        return result
+
+    if json_total is not None:
+        return {
+            "unique_ads": json_total,
+            "unique_phones": excel_stats.get("unique_phones", 0),
+            "total_rows": excel_stats["total_rows"] or json_total,
+            "ads_source": "json_summary",
+            "json_summary_key": json_key,
+            "json_total_listings": json_total,
+            "subcategory_breakdown": json_breakdown,
+            "date_published_hour_counts": excel_stats.get("date_published_hour_counts", {}),
+        }
+
+    return {
+        **excel_stats,
+        "json_summary_key": json_key,
+        "json_total_listings": json_total,
+        "subcategory_breakdown": json_breakdown,
+    }

@@ -1,101 +1,209 @@
-name: DOMAN Monitor
+name: "DOMAN Schema Monitor"
 
 on:
   workflow_run:
-    workflows: ["DOMAN"]
+    workflows:
+      - "DOMAN"
     types:
       - completed
+
+  schedule:
+    - cron: '0 8 * * 1-6'
+    - cron: '0 9 * * 0'
+
   workflow_dispatch:
+    inputs:
+      date:
+        description: "Date to inspect (YYYY-MM-DD). Leave blank for yesterday."
+        required: false
+        default: ""
+      update_stats:
+        description: "Update monitor_stats.yml with observed data?"
+        type: boolean
+        default: false
+      days_lookback:
+        description: "How many days to scan (1 = yesterday only)"
+        required: false
+        default: "1"
+      quality_checks:
+        description: "Run deep data-quality checks (slower)?"
+        type: boolean
+        default: false
+      fail_on_error:
+        description: "Fail the workflow if any scraper check fails?"
+        type: boolean
+        default: false
+      weekly_refresh:
+        description: "Run weekly stats refresh (last 7 days) instead of daily check?"
+        type: boolean
+        default: false
+
+concurrency:
+  group: doman-schema-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: "1"
 
 jobs:
-  build_stats:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+  # ── Job 1: Daily validation ───────────────────────────────────────────────
+  daily-check:
+    name: "Daily schema validation"
+    runs-on: ubuntu-22.04
+    if: >
+      (github.event_name == 'workflow_dispatch' &&
+       github.event.inputs.weekly_refresh != 'true') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 8 * * 1-6') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion != 'cancelled')
+
+    env:
+      CF_R2_ACCESS_KEY_ID:       ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+      CF_R2_SECRET_ACCESS_KEY:   ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+      CF_R2_ENDPOINT_URL:        ${{ secrets.CF_R2_ENDPOINT_URL }}
+      CF_R2_BUCKET_NAME:         ${{ secrets.CF_R2_BUCKET_NAME }}
+      MONITOR_SITE_SLUG:         DOMAN
+      MONITOR_ALERT_WEBHOOK_URL: ${{ secrets.MONITOR_ALERT_WEBHOOK_URL }}
+      GITHUB_TOKEN:              ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install dependencies
-        run: pip install boto3 openpyxl pyyaml python-dotenv pandas
+        run: pip install boto3 openpyxl pyyaml pandas
 
-      # - name: Upload site.yml
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: |
-      #       python << 'EOF'
-      #       import boto3
-      #       import os
-      #       client = boto3.client('s3',
-      #                   endpoint_url=os.environ['CF_R2_ENDPOINT_URL'],
-      #                   aws_access_key_id=os.environ['CF_R2_ACCESS_KEY_ID'],
-      #                   aws_secret_access_key=os.environ['CF_R2_SECRET_ACCESS_KEY'],
-      #                   region_name='auto'
-      #               )
-      #       local_file = "monitor/site.yml" 
-      #       object_key = "monitor-sites/DOMAN/site.yml"
-      #       client.upload_file(local_file, os.environ['CF_R2_BUCKET_NAME'], object_key)
-      #       print(f"Uploaded to {os.environ['CF_R2_BUCKET_NAME']}/{object_key}")
-      #       EOF
-
-      # - name: Upload websites-config.yml
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: python monitor/build_monitor_data.py --prefix DOMAN --upload-config
-
-      - name: Diagnose R2 paths
+      # ═══════════════════════════════════════════════════════════════════════
+      # UPLOAD CONFIG FILES (site.yml + websites-config.yml)
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: Upload site.yml to R2
         env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_ACCESS_KEY_ID:     ${{ secrets.CF_R2_ACCESS_KEY_ID }}
           CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-        run: python monitor/diagnose_r2_paths.py --prefix DOMAN --days 5
-
-      # - name: Diagnose excel files
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: python monitor/diagnose_excel_files.py --prefix DOMAN --category Vehicles --date 2026-08-02
-      
-      
-      # - name: Build stats (test mode)
-      #   env:
-      #     CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-      #     CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-      #     CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-      #     CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-      #   run: python monitor/build_monitor_data.py --prefix DOMAN --build-stats --days 3 --no-save --output-stats test_stats.yml
-
-      # - name: Show test stats
-      #   run: cat test_stats.yml
-
-
-      - name: Upload monitor_stats.yml
-        env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-        run: python monitor/build_monitor_data.py --prefix DOMAN --build-stats --days 7
-
-      - name: Upload report.json
-        env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+          CF_R2_ENDPOINT_URL:      ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME:       ${{ secrets.CF_R2_BUCKET_NAME }}
         run: |
-          DATE_PREFIX=$(date +'%Y-%m-%d')
-          echo "Generating report for: $DATE_PREFIX"
-          python monitor/build_monitor_data.py --prefix DOMAN --report-date "$DATE_PREFIX"
+          python << 'EOF'
+          import boto3
+          import os
+
+          client = boto3.client(
+              "s3",
+              endpoint_url=os.environ["CF_R2_ENDPOINT_URL"],
+              aws_access_key_id=os.environ["CF_R2_ACCESS_KEY_ID"],
+              aws_secret_access_key=os.environ["CF_R2_SECRET_ACCESS_KEY"],
+              region_name="auto",
+          )
+          bucket = os.environ["CF_R2_BUCKET_NAME"]
+
+          # 1) Upload site.yml → monitor-sites/DOMAN/site.yml
+          local_site = "monitor/site.yml"
+          r2_site_key = "monitor-sites/DOMAN/site.yml"
+          client.upload_file(local_site, bucket, r2_site_key)
+          print(f"✅ Uploaded site.yml → r2://{bucket}/{r2_site_key}")
+
+          # 2) Upload websites-config.yml → DOMAN/monitor/websites-config.yml
+          local_config = "monitor/websites-config.yml"
+          r2_config_key = "DOMAN/monitor/websites-config.yml"
+          client.upload_file(local_config, bucket, r2_config_key)
+          print(f"✅ Uploaded websites-config.yml → r2://{bucket}/{r2_config_key}")
+          EOF
+
+      # ── Build CLI flags ───────────────────────────────────────────────────
+      - name: Build monitor flags
+        id: flags
+        run: |
+          FLAGS=""
+          DATE="${{ github.event.inputs.date }}"
+          if [ -n "$DATE" ]; then
+            FLAGS="$FLAGS --date $DATE"
+          fi
+          LOOKBACK="${{ github.event.inputs.days_lookback }}"
+          if [ -n "$LOOKBACK" ] && [ "$LOOKBACK" != "1" ]; then
+            FLAGS="$FLAGS --days-lookback $LOOKBACK"
+          fi
+          if [ "${{ github.event.inputs.update_stats }}" = "true" ]; then
+            FLAGS="$FLAGS --update-stats"
+          fi
+          if [ "${{ github.event.inputs.quality_checks }}" = "true" ]; then
+            FLAGS="$FLAGS --quality"
+          fi
+          if [ "${{ github.event.inputs.fail_on_error }}" = "true" ]; then
+            FLAGS="$FLAGS --fail-on-error"
+          fi
+          echo "flags=$FLAGS" >> $GITHUB_OUTPUT
+          echo "Monitor flags: $FLAGS"
+
+      # ── Run inspector ─────────────────────────────────────────────────────
+      - name: Run schema inspector
+        run: python monitor/inspect_r2_schema.py ${{ steps.flags.outputs.flags }}
+
+  # ── Job 2: Weekly stats refresh ───────────────────────────────────────────
+  weekly-stats:
+    name: "Weekly stats refresh (last 7 days)"
+    runs-on: ubuntu-22.04
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 9 * * 0') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.event.inputs.weekly_refresh == 'true')
+
+    env:
+      CF_R2_ACCESS_KEY_ID:       ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+      CF_R2_SECRET_ACCESS_KEY:   ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+      CF_R2_ENDPOINT_URL:        ${{ secrets.CF_R2_ENDPOINT_URL }}
+      CF_R2_BUCKET_NAME:         ${{ secrets.CF_R2_BUCKET_NAME }}
+      MONITOR_SITE_SLUG:         DOMAN
+      MONITOR_ALERT_WEBHOOK_URL: ${{ secrets.MONITOR_ALERT_WEBHOOK_URL }}
+      GITHUB_TOKEN:              ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install boto3 openpyxl pyyaml pandas
+
+      # Upload configs here too (in case you updated them)
+      - name: Upload config files to R2
+        env:
+          CF_R2_ACCESS_KEY_ID:     ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL:      ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME:       ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: |
+          python << 'EOF'
+          import boto3, os
+          client = boto3.client("s3",
+              endpoint_url=os.environ["CF_R2_ENDPOINT_URL"],
+              aws_access_key_id=os.environ["CF_R2_ACCESS_KEY_ID"],
+              aws_secret_access_key=os.environ["CF_R2_SECRET_ACCESS_KEY"],
+              region_name="auto",
+          )
+          bucket = os.environ["CF_R2_BUCKET_NAME"]
+          client.upload_file("monitor/site.yml", bucket, "monitor-sites/DOMAN/site.yml")
+          client.upload_file("monitor/websites-config.yml", bucket, "DOMAN/monitor/websites-config.yml")
+          print("✅ Configs uploaded")
+          EOF
+
+      - name: Refresh stats over last 7 days
+        run: |
+          python monitor/inspect_r2_schema.py \
+            --days-lookback 7 \
+            --update-stats \
+            --quality

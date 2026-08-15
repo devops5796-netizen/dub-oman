@@ -197,7 +197,44 @@ _col_standard_listing: &col_standard_listing
   - type
   - updatedAt
   - userExternalID
+  - contact_info
+  - image_r2_paths
 
+_col_properties_listing: &col_vproperties_listing
+  - activeProducts
+  - agents
+  - agency
+  - canApplyBadges
+  - category
+  - contactInfo
+  - createdAt
+  - description
+  - externalID
+  - extraFields
+  - format
+  - formattedExtraFields
+  - geography
+  - id
+  - isSellerVerified
+  - keywords
+  - location
+  - objectID
+  - photoCount
+  - photo_urls
+  - product
+  - productInfo
+  - productScore
+  - purpose
+  - slug
+  - sourceID
+  - state
+  - timestamp
+  - title
+  - type
+  - updatedAt
+  - userExternalID
+  - contact_info
+  - image_r2_paths
 
 _col_vehicles_listing: &col_vehicles_listing
   - agency
@@ -231,70 +268,9 @@ _col_vehicles_listing: &col_vehicles_listing
   - type
   - updatedAt
   - userExternalID
-  
-_col_fashion_beauty_listing: &col_fashion_beauty_listing
-  - activeProducts
-  - canApplyBadges
-  - category
-  - contactInfo
-  - createdAt
-  - description
-  - externalID
-  - extraFields
-  - format
-  - formattedExtraFields
-  - geography
-  - id
-  - isSellerVerified
-  - keywords
-  - location
-  - objectID
-  - photoCount
-  - photo_urls
-  - product
-  - productInfo
-  - productScore
-  - purpose
-  - slug
-  - sourceID
-  - state
-  - timestamp
-  - title
-  - type
-  - updatedAt
-  - userExternalID
+  - contact_info
+  - image_r2_paths
 
-_col_electronics_home_appliances_listing: &col_electronics_home_appliances_listing
-  - activeProducts
-  - canApplyBadges
-  - category
-  - contactInfo
-  - createdAt
-  - description
-  - externalID
-  - extraFields
-  - format
-  - formattedExtraFields
-  - geography
-  - id
-  - isSellerVerified
-  - keywords
-  - location
-  - objectID
-  - photoCount
-  - photo_urls
-  - product
-  - productInfo
-  - productScore
-  - purpose
-  - slug
-  - sourceID
-  - state
-  - timestamp
-  - title
-  - type
-  - updatedAt
-  - userExternalID
 
 _col_motors_listings: &col_motors_listings
   - version_id
@@ -319,97 +295,98 @@ _col_motors_listings: &col_motors_listings
   - overview_data.info_data
   - overview_data.images
   - overview_data.colors
+  - image_r2_paths
 
 # ── PER-SCRAPER SCHEMAS ──────────────────────────────────────
 excel_schema:
 
   # ── BATCH DOMAN ─────────────────────────────────────────────────
-  - scraper: cars-for-sale
+  - scraper: cars-for-sale (vehicles)
     excel_file_pattern: "{brand_name}.xlsx"
     sheets:
       - name: "{car_type}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: cars-for-rent
+  - scraper: cars-for-rent (vehicles)
     excel_file_pattern: "{brand_name}.xlsx"
     sheets:
       - name: "{car_type}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: car-accessories
+  - scraper: car-accessories (vehicles)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: motorcycles
+  - scraper: motorcycles (vehicles)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: boats
+  - scraper: boats (vehicles)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
    
-  - scraper: trucks
+  - scraper: trucks (vehicles)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: other-vehicles
+  - scraper: other-vehicles (vehicles)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: spare-parts
+  - scraper: spare-parts (vehicles)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
    
-  - scraper: vip-car-plates
+  - scraper: vip-car-plates (vehicles)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
         required_columns: *col_vehicles_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: properties-for-rent
+  - scraper: properties-for-rent (properties)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
-        required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
-  - scraper: properties-for-sale
+  - scraper: properties-for-sale (properties)
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
-        required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        required_columns: *col_vehicles_listing
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: mobile-phones-accessories
@@ -417,15 +394,15 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: electronics-home-appliances
     excel_file_pattern: "{subcategory_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
-        required_columns: *col_electronics_home_appliances_listing
-        row_count_range: [1, 1]
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: home-garden
@@ -433,15 +410,15 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: fashion-beauty
     excel_file_pattern: "{subcategory_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
-        required_columns: *col_fashion_beauty_listing
-        row_count_range: [1, 1]
+        required_columns: *col_standard_listing
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: pets
@@ -449,7 +426,7 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: kids-babies
@@ -457,7 +434,7 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: sporting-goods-bikes
@@ -465,7 +442,7 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: hobbies-music-art-books
@@ -473,7 +450,7 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: jobs-services
@@ -481,7 +458,7 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: business-industrial
@@ -489,7 +466,7 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: services
@@ -497,7 +474,7 @@ excel_schema:
     sheets:
       - name: "{child_category or Main}"                
         required_columns: *col_standard_listing
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
   - scraper: motors
@@ -505,7 +482,7 @@ excel_schema:
     sheets:
       - name: "{car_type}"                
         required_columns: *col_motors_listings
-        row_count_range: [1, 1]
+        row_count_range: [1, 100]
     min_file_size_kb: 5
 
 
@@ -533,17 +510,17 @@ alert_thresholds:
   # Per-scraper observed file-size floors (KB) from real stats × 50%, floored at schema min
   # Used as a fast check even before trend history exists
   observed_min_file_size_kb: 
-    cars-for-sale: 5
-    cars-for-rent: 5
-    car-accessories: 5
-    motorcycles: 5
-    boats: 5
-    trucks: 5
-    other-vehicles: 5
-    spare-parts: 5
-    vip-car-plates: 5
-    vehicles: 5
-    properties: 5
+    cars-for-sale (vehicles): 5
+    cars-for-rent (vehicles): 5
+    car-accessories (vehicles): 5
+    motorcycles (vehicles): 5
+    boats (vehicles): 5
+    trucks (vehicles): 5
+    other-vehicles (vehicles): 5
+    spare-parts (vehicles): 5
+    vip-car-plates (vehicles): 5
+    properties-for-rent (properties): 5
+    properties-for-sale (properties): 5
     mobile-phones-accessories: 5
     electronics-home-appliances: 5
     home-garden: 5

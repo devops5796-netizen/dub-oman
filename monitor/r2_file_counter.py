@@ -1,13 +1,25 @@
+"""
+r2_file_counter.py
+==================
+Count total objects stored in Cloudflare R2 for the monitor hub dashboard.
+
+Per scraper: all objects under the scraper's R2 data prefix (all dates, all types).
+Per site: all objects under the site's r2_prefix (includes monitor/ metadata).
+Also tracks cumulative byte size for the same prefixes.
+"""
+
+from __future__ import annotations
+
 import logging
 from datetime import datetime
-from typing import Dict
+from typing import Dict, List
 
 log = logging.getLogger("monitor")
 
 
-def count_r2_objects(client, bucket: str, prefix: str) -> int:
+def count_r2_inventory(client, bucket: str, prefix: str) -> Dict[str, int]:
     """
-    Count all objects under *prefix* using paginated list_objects_v2.
+    Count all objects and bytes under *prefix* using paginated list_objects_v2.
 
     Skips zero-byte folder marker keys ending with '/'.
     """
@@ -15,6 +27,7 @@ def count_r2_objects(client, bucket: str, prefix: str) -> int:
     list_prefix = f"{normalized}/" if normalized else ""
 
     count = 0
+    size_bytes = 0
     paginator = client.get_paginator("list_objects_v2")
     try:
         for page in paginator.paginate(Bucket=bucket, Prefix=list_prefix):
@@ -23,122 +36,149 @@ def count_r2_objects(client, bucket: str, prefix: str) -> int:
                 if key.endswith("/"):
                     continue
                 count += 1
+                size_bytes += int(obj.get("Size") or 0)
     except Exception as exc:
-        log.warning(f"R2 object count failed for prefix {list_prefix!r}: {exc}")
-        return 0
+        log.warning(f"R2 inventory failed for prefix {list_prefix!r}: {exc}")
+        return {"objects": 0, "size_bytes": 0}
 
-    return count
+    return {"objects": count, "size_bytes": size_bytes}
+
+
+def count_r2_objects(client, bucket: str, prefix: str) -> int:
+    """Backward-compatible wrapper returning only object count."""
+    return count_r2_inventory(client, bucket, prefix)["objects"]
+
+
+def count_scraper_r2_files(client, bucket: str, r2_base: str) -> int:
+    """Total objects under one scraper/category prefix."""
+    base = r2_base.strip("/")
+    if not base:
+        return 0
+    inventory = count_r2_inventory(client, bucket, base)
+    log.debug(
+        f"  R2 inventory {base}: {inventory['objects']} object(s), {inventory['size_bytes']} bytes"
+    )
+    return inventory["objects"]
+
+
+def _date_partition_prefixes(base: str, dt: datetime, category: str | None = None) -> List[str]:
+    """R2 date-partition prefixes (year/month/day), zero-padded and unpadded.
+
+    When category is provided, the path becomes:
+        base/year=.../month=.../day=.../category/
+    """
+    seen: set = set()
+    prefixes: List[str] = []
+    for month in (f"{dt.month:02d}", str(dt.month)):
+        for day in (f"{dt.day:02d}", str(dt.day)):
+            if category:
+                prefix = f"{base}/year={dt.year}/month={month}/day={day}/{category.strip('/')}/"
+            else:
+                prefix = f"{base}/year={dt.year}/month={month}/day={day}/"
+            if prefix not in seen:
+                seen.add(prefix)
+                prefixes.append(prefix)
+    return prefixes
+
+
+def count_daily_r2_inventory(
+    client, bucket: str, r2_base: str, partition_dt: datetime, category: str | None = None
+) -> Dict[str, int]:
+    """
+    Count objects and bytes under one scraper's date-partition folder(s).
+
+    Includes all file types (Excel, JSON, etc.) for that partition day.
+    Deduplicates keys when both padded and unpadded prefix variants exist.
+    """
+    base = r2_base.strip("/")
+    if not base:
+        return {"objects": 0, "size_bytes": 0}
+
+    seen_keys: set = set()
+    count = 0
+    size_bytes = 0
+    paginator = client.get_paginator("list_objects_v2")
+
+    for prefix in _date_partition_prefixes(base, partition_dt, category):
+        try:
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
+                    if key.endswith("/") or key in seen_keys:
+                        continue
+                    seen_keys.add(key)
+                    count += 1
+                    size_bytes += int(obj.get("Size") or 0)
+        except Exception as exc:
+            log.warning(f"R2 daily inventory failed for prefix {prefix!r}: {exc}")
+
+    log.debug(
+        f"  R2 daily inventory {base} ({partition_dt.strftime('%Y-%m-%d')}): "
+        f"{count} object(s), {size_bytes} bytes"
+    )
+    return {"objects": count, "size_bytes": size_bytes}
+
+
+def count_scraper_r2_inventory(client, bucket: str, r2_base: str, category: str | None = None) -> Dict[str, int]:
+    """Total objects + bytes under one scraper/category prefix.
+
+    When category is provided, searches under base/ and filters keys that contain
+    the category path (e.g. DKSA/.../vehicles/cars-for-sale/...).
+    """
+    base = r2_base.strip("/")
+    if not base:
+        return {"objects": 0, "size_bytes": 0}
+
+    if category:
+        cat = category.strip("/")
+        cat_check = f"/{cat}/"
+        prefix = f"{base}/"
+        count = 0
+        size_bytes = 0
+        paginator = client.get_paginator("list_objects_v2")
+        try:
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
+                    if key.endswith("/"):
+                        continue
+                    if cat_check in key:
+                        count += 1
+                        size_bytes += int(obj.get("Size") or 0)
+        except Exception as exc:
+            log.warning(f"R2 inventory failed for prefix {prefix!r} with category {cat!r}: {exc}")
+            return {"objects": 0, "size_bytes": 0}
+        log.debug(
+            f"  R2 inventory {base} (cat={cat}): {count} object(s), {size_bytes} bytes"
+        )
+        return {"objects": count, "size_bytes": size_bytes}
+    else:
+        inventory = count_r2_inventory(client, bucket, base)
+        log.debug(
+            f"  R2 inventory {base}: {inventory['objects']} object(s), {inventory['size_bytes']} bytes"
+        )
+        return inventory
+
 
 def count_site_r2_files(client, bucket: str, r2_prefix: str) -> int:
     """Total objects under the site's data prefix (all scrapers + monitor artifacts)."""
     prefix = r2_prefix.strip("/")
     if not prefix:
         return 0
-    total = count_r2_objects(client, bucket, prefix)
-    log.info(f"Site R2 inventory ({prefix}): {total} object(s)")
-    return total
+    inventory = count_r2_inventory(client, bucket, prefix)
+    log.info(
+        f"Site R2 inventory ({prefix}): {inventory['objects']} object(s), {inventory['size_bytes']} bytes"
+    )
+    return inventory["objects"]
 
 
-def _list_prefix(prefix: str) -> str:
-    normalized = prefix.strip("/")
-    return f"{normalized}/" if normalized else ""
-
-
-def sum_r2_bytes(client, bucket: str, prefix: str) -> int:
-    """Sum Size (bytes) of all objects under *prefix*."""
-    list_prefix = _list_prefix(prefix)
-    total = 0
-    paginator = client.get_paginator("list_objects_v2")
-    try:
-        for page in paginator.paginate(Bucket=bucket, Prefix=list_prefix):
-            for obj in page.get("Contents", []):
-                if obj["Key"].endswith("/"):
-                    continue
-                total += obj.get("Size", 0)
-    except Exception as exc:
-        log.warning(f"R2 byte sum failed for prefix {list_prefix!r}: {exc}")
-        return 0
-    return total
-
-
-def sum_site_r2_bytes(client, bucket: str, r2_prefix: str) -> int:
-    """Total storage bytes under the site's data prefix."""
+def count_site_r2_inventory(client, bucket: str, r2_prefix: str) -> Dict[str, int]:
+    """Total objects + bytes under the site's data prefix (all categories + monitor artifacts)."""
     prefix = r2_prefix.strip("/")
     if not prefix:
-        return 0
-    total = sum_r2_bytes(client, bucket, prefix)
-    log.info(f"Site R2 storage ({prefix}): {total} byte(s)")
-    return total
-
-
-def date_partition_prefix(base: str, dt: datetime) -> str:
-    base = base.strip("/")
-    date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"
-    return f"{base}/{date_part}/"
-
-
-def scraper_date_prefix(base: str, category: str, dt: datetime) -> str:
-    """All objects for one scraper on one date (excel, summary, images, etc.)."""
-    base = base.strip("/")
-    cat = category.strip("/")
-    date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"
-    return f"{base}/{date_part}/{cat}/"
-
-
-def sum_scraper_daily_r2_bytes(
-    client, bucket: str, base: str, category: str, dt: datetime
-) -> int:
-    return sum_r2_bytes(client, bucket, scraper_date_prefix(base, category, dt))
-
-
-def collect_scraper_r2_sizes(
-    client,
-    bucket: str,
-    base: str,
-    scraper_categories: Dict[str, str],
-) -> Dict[str, int]:
-    """
-    Single listing pass over base/. Assign each object to the longest
-    matching scraper category path (supports nested paths like vehicles/cars-for-sale).
-    """
-    sizes = {name: 0 for name in scraper_categories}
-    if not scraper_categories:
-        return sizes
-
-    prefix = _list_prefix(base)
-    cat_entries = sorted(
-        ((name, cat.strip("/")) for name, cat in scraper_categories.items()),
-        key=lambda item: len(item[1]),
-        reverse=True,
+        return {"objects": 0, "size_bytes": 0}
+    inventory = count_r2_inventory(client, bucket, prefix)
+    log.info(
+        f"Site R2 inventory ({prefix}): {inventory['objects']} object(s), {inventory['size_bytes']} bytes"
     )
-
-    paginator = client.get_paginator("list_objects_v2")
-    try:
-        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-            for obj in page.get("Contents", []):
-                key = obj["Key"]
-                if key.endswith("/"):
-                    continue
-                size = obj.get("Size", 0)
-                for name, cat in cat_entries:
-                    if f"/{cat}/" in key:
-                        sizes[name] += size
-                        break
-    except Exception as exc:
-        log.warning(f"R2 scraper size collection failed for {prefix!r}: {exc}")
-
-    return sizes
-
-
-def collect_daily_scraper_r2_sizes(
-    client,
-    bucket: str,
-    base: str,
-    scraper_categories: Dict[str, str],
-    dt: datetime,
-) -> Dict[str, int]:
-    """Sum bytes per scraper for a single date partition."""
-    return {
-        name: sum_scraper_daily_r2_bytes(client, bucket, base, cat, dt)
-        for name, cat in scraper_categories.items()
-    }
+    return inventory
