@@ -70,7 +70,7 @@ jobs:
   finalize-summaries:
     runs-on: ubuntu-latest
     needs: scrape-and-clean
-    if: ${{ always() }}
+    if: ${{ success() }}
     steps:
       - uses: actions/checkout@v4
 

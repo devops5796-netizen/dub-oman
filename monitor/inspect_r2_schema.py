@@ -28,7 +28,7 @@ Required env vars
 -----------------
   CF_R2_ACCESS_KEY_ID, CF_R2_SECRET_ACCESS_KEY,
   CF_R2_ENDPOINT_URL,  CF_R2_BUCKET_NAME
-  MONITOR_SITE_SLUG    — folder name under monitor-sites/ (e.g. 4sale, boshamlan)
+  MONITOR_SITE_SLUG    — folder name under monitor-sites/ (e.g. DOMAN, boshamlan)
 
 Optional env vars
 -----------------
@@ -413,6 +413,8 @@ _COLUMN_CANONICAL: Dict[str, str] = {
     "descriptionar": "description",
     "phonenumber": "phone",
     "whatsappphone": "phone",
+    "contactinfo": "contactinfo",
+    "contact_info": "contactinfo",
 }
 
 
@@ -701,13 +703,16 @@ def severity_for_check(check_name: str) -> str:
     return "high"
 
 
-def collect_alerts(all_results: List[Dict], run_date: str) -> List[Dict]:
+def collect_alerts(all_results: List[Dict], run_date: str, alert_cfg: Optional[Dict] = None) -> List[Dict]:
+    alert_cfg = alert_cfg or {}
     """Build a flat list of alert events from scraper results."""
     alerts: List[Dict] = []
     for r in all_results:
         scraper = r["scraper"]
         if r["files_found"] == 0:
             if r.get("files_optional"):
+                continue
+            if alert_cfg.get("skip_no_files_alert"):
                 continue
             alerts.append({
                 "scraper": scraper,
@@ -776,7 +781,7 @@ def should_send_alerts(alerts: List[Dict], alert_cfg: Dict, total_scrapers: int)
 
 def format_alert_text(run_date: str, alerts: List[Dict], passed: int, total: int) -> str:
     lines = [
-        f"4Sale Schema Monitor ALERT — {run_date}",
+        f"DOMAN Schema Monitor ALERT — {run_date}",
         f"{passed}/{total} scrapers passed · {len(alerts)} issue(s)",
         "",
     ]
@@ -816,7 +821,7 @@ def format_alert_html(run_date: str, alerts: List[Dict], passed: int, total: int
 
     failed = sorted({a["scraper"] for a in alerts})
     return (
-        f"<h2>4Sale Schema Monitor ALERT — {run_date}</h2>"
+        f"<h2>DOMAN Schema Monitor ALERT — {run_date}</h2>"
         f"<p><strong>{passed}/{total}</strong> scrapers passed · "
         f"<strong>{len(alerts)}</strong> issue(s)</p>"
         f"<p>Failed scrapers: {', '.join(failed)}</p>"
@@ -1332,7 +1337,7 @@ def parse_args():
     p.add_argument(
         "--site-slug",
         default=None,
-        help="Override MONITOR_SITE_SLUG (e.g. 4sale) for this run",
+        help="Override MONITOR_SITE_SLUG (e.g. DOMAN) for this run",
     )
     return p.parse_args()
 

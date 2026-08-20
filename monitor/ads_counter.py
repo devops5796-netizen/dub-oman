@@ -46,6 +46,7 @@ PHONE_COLUMN_NAMES = frozenset({
     "contact no",
     "main_branch_phone",
     "main branch phone",
+    "contact_info"
 })
 PHONE_COLUMN_CANONICAL = frozenset({
     "phone",
@@ -55,6 +56,8 @@ PHONE_COLUMN_CANONICAL = frozenset({
     "contacts",
     "contactno",
     "mainbranchphone",
+    "contactinfo",
+    "contact"
 })
 TOTAL_LISTINGS_KEYS = (
     "total_listings",
@@ -223,6 +226,18 @@ def _extract_phone_tokens(value: Any) -> List[str]:
         tokens: List[str] = []
         for item in value:
             tokens.extend(_extract_phone_tokens(item))
+        return tokens
+
+    # ← NEW: handle contact_info JSON dict
+    if isinstance(value, dict):
+        tokens: List[str] = []
+        for key in ("mobile", "whatsapp", "proxyMobile", "mobileNumbers"):
+            val = value.get(key)
+            if isinstance(val, list):
+                for v in val:
+                    tokens.extend(_extract_phone_tokens(v))
+            elif val is not None:
+                tokens.extend(_extract_phone_tokens(val))
         return tokens
 
     text = str(value).strip()
