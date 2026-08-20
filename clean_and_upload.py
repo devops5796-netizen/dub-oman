@@ -203,7 +203,7 @@ def download_images(images: list, id_prod: str, category_display: str, dt: datet
         try:
             img = Image.open(io.BytesIO(r.content)).convert("RGB")
             buf = io.BytesIO()
-            img.save(buf, format="WEBP", quality=75, method=6)
+            img.save(buf, format="WEBP", quality=50, method=6)
             buf.seek(0)
             r2_key = upload_buffer(
                 buf,

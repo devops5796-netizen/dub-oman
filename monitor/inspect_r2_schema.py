@@ -319,47 +319,69 @@ def excel_prefixes_for_date(base: str, category: Optional[str], dt: datetime) ->
 _TEMPLATE_MARKERS = ("{", "or Main", "or All Listings")
 
 # Scrapers that may legitimately produce zero files on many days (e.g. no yesterday listings)
-_FILES_OPTIONAL_SCRAPERS = frozenset({"New Car"})
+_FILES_OPTIONAL_SCRAPERS = frozenset({"motors"})
 
 # Per-scraper validation overrides when R2 schema does not match actual Excel layout
 _SCRAPER_PROFILES: Dict[str, Dict] = {
-    "Commercials": {
-        "skip_info_sheet": True,
-        "data_sheet_aliases": {"Sheet1", "Main", "Data", "Listings"},
-        "core_columns": ["id", "title"],
-    },
-    "Rest-Automotive-Part1": {
-        "min_file_size_kb": 6,
-    },
-    "Rest-Automotive-Part2": {
-        "core_columns": [
-            "ID", "Title", "Phone", "User", "User ID", "User Email",
-            "Description", "Price", "Date Published", "Date Created",
-            "Date Expired", "Date Sort",
-        ],
-        "optional_columns": [
-            "Images Count", "Image URLs", "District", "Category", "Contacts",
-            "PM Enabled", "Latitude", "Longitude", "Slug", "Status",
-        ],
+    "cars-for-sale (vehicles)": {
+        "skip_sheet_trend_checks": True,  
         "min_file_size_kb": 5,
     },
-    "Services": {"min_file_size_kb": 5},
-    "Automotive-Cars-and-Trucks": {"min_file_size_kb": 5},
-    "Electronics": {
+    "cars-for-rent (vehicles)": {
+        "skip_sheet_trend_checks": True,
         "min_file_size_kb": 5,
-        # One sheet per child category — row counts are too volatile for per-sheet trends
-        "skip_sheet_trend_checks": True,
     },
-    "Furniture": {"min_file_size_kb": 5,
+    "car-accessories (vehicles)": {
         "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
     },
-    "Property": {
-        # property-offices (and similar) use one sheet per business — volatile row counts
+    "motorcycles (vehicles)": {
         "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
     },
-    "Rest-Automotive-Part3": {
-        # One sheet per business — row counts are too volatile for per-sheet trends
+    "boats (vehicles)": {
         "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
+    },
+    "trucks (vehicles)": {
+        "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
+    },
+    "other-vehicles (vehicles)": {
+        "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
+    },
+    "spare-parts (vehicles)": {
+        "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
+    },
+    "vip-car-plates (vehicles)": {
+        "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
+    },
+    "properties-for-rent (properties)": {
+        "skip_sheet_trend_checks": True,   # one sheet per property type
+        "min_file_size_kb": 5,
+    },
+    "properties-for-sale (properties)": {
+        "skip_sheet_trend_checks": True,
+        "min_file_size_kb": 5,
+    },
+    "electronics-home-appliances": {
+        "skip_sheet_trend_checks": True,   # sheets كتيرة ومتقلبة (camcorders, TVs...)
+        "min_file_size_kb": 5,
+    },
+    "home-garden": {
+        "skip_sheet_trend_checks": True,   # furniture, garden, kitchenware...
+        "min_file_size_kb": 5,
+    },
+    "services": {
+        "skip_sheet_trend_checks": True,   # 40+ service sheet (plumbers, movers...)
+        "min_file_size_kb": 5,
+    },
+    "motors": {
+        "skip_sheet_trend_checks": True,   # model per sheet
+        "min_file_size_kb": 5,
     },
 }
 
