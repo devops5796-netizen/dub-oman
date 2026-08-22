@@ -734,7 +734,7 @@ def collect_alerts(all_results: List[Dict], run_date: str, alert_cfg: Optional[D
         if r["files_found"] == 0:
             if r.get("files_optional"):
                 continue
-            if alert_cfg.get("skip_no_files_alert"):
+            if alert_cfg.get("skip_no_files_alert", True):
                 continue
             alerts.append({
                 "scraper": scraper,
