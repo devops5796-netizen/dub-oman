@@ -256,14 +256,14 @@ def upload_config(client, bucket: str, config_key: str) -> None:
 
 def r2_base_prefix(r2_path_raw: str) -> Tuple[str, Optional[str]]:
     """
-    Convert config r2_path like '{r2_bucket}/DKSA/vehicles/cars-for-sale'
+    Convert config r2_path like '{r2_bucket}/DOMAN/vehicles/cars-for-sale'
     into (base, category).
 
     The category sits UNDER the date partition:
-        DKSA/year=.../month=.../day=.../vehicles/cars-for-sale/excel/...
+        DOMAN/year=.../month=.../day=.../vehicles/cars-for-sale/excel/...
 
     Returns:
-        ('DKSA', 'vehicles/cars-for-sale')
+        ('DOMAN', 'vehicles/cars-for-sale')
     """
     path = r2_path_raw.strip()
     if path.startswith("{"):
@@ -289,7 +289,7 @@ def excel_prefixes_for_date(base: str, category: Optional[str], dt: datetime) ->
     Tries zero-padded (month=06/day=09) and unpadded (month=6/day=9) forms.
 
     Structure:
-        DKSA/year=2026/month=08/day=15/vehicles/cars-for-sale/excel/
+        DOMAN/year=2026/month=08/day=15/vehicles/cars-for-sale/excel/
     """
     base = base.strip("/")
     date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"

@@ -1,0 +1,59 @@
+name: Fetch Phones
+
+on:
+  workflow_run:
+    workflows: ["DOMAN"]
+    types:
+      - completed
+  workflow_dispatch:
+
+
+jobs:
+  fetch-phones:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: fetch-phones
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install --with-deps chromium
+
+      - name: Determine date
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            echo "date=${{ github.event.inputs.date }}" >> $GITHUB_OUTPUT
+          else
+            echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch contact info from R2
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: |
+          CATS="${{ github.event.inputs.categories }}"
+          if [ -n "$CATS" ]; then
+            python fetch_phones.py \
+              --date "${{ steps.date.outputs.date }}" \
+              --delay-min ${{ github.event.inputs.delay_min || '5' }} \
+              --delay-max ${{ github.event.inputs.delay_max || '10' }} \
+              --categories $CATS
+          else
+            python fetch_phones.py \
+              --date "${{ steps.date.outputs.date }}" \
+              --delay-min ${{ github.event.inputs.delay_min || '5' }} \
+              --delay-max ${{ github.event.inputs.delay_max || '10' }}
+          fi

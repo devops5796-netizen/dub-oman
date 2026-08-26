@@ -123,7 +123,7 @@ def count_scraper_r2_inventory(client, bucket: str, r2_base: str, category: str 
     """Total objects + bytes under one scraper/category prefix.
 
     When category is provided, searches under base/ and filters keys that contain
-    the category path (e.g. DKSA/.../vehicles/cars-for-sale/...).
+    the category path (e.g. DOMAN/.../vehicles/cars-for-sale/...).
     """
     base = r2_base.strip("/")
     if not base:

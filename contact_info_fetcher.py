@@ -55,8 +55,7 @@ def has_valid_phone(data: dict) -> bool:
             digits = re.sub(r'\D', '', val_str)
             if len(digits) >= 7:
                 return True
-    
-    # Check mobileNumbers list (Oman API returns this)
+
     mobile_numbers = data.get("mobileNumbers")
     if isinstance(mobile_numbers, list):
         for num in mobile_numbers:
@@ -86,25 +85,41 @@ def _call_api_directly(page, listing_id: str, ad_url: str):
 
 
 def _try_fetch_once(page, ad_url: str, listing_id: str):
+    # ✅ domcontentloaded (سريع ومش بيعلق) — مفيش networkidle
     page.goto(ad_url, wait_until="domcontentloaded", timeout=30000)
     tracker.log_request(source="scraping_phone_num")
-    page.wait_for_timeout(random.uniform(1500, 2500))
+    
+    # ✅ انتظر 4-6 ثواني بعد فتح الصفحة عشان الـ JS يحمل الـ button
+    page.wait_for_timeout(random.uniform(4000, 6000))
 
     # 1) Try API directly first
     data = _call_api_directly(page, listing_id, ad_url)
     if has_valid_phone(data):
         return data
 
-    # 2) Look for phone button
+    # 2) Look for phone button — 8 ثواني timeout (كان 2 ثانية)
     call_button = None
     for selector in CONTACT_BUTTON_SELECTORS:
         loc = page.locator(selector).first
         try:
-            if loc.is_visible(timeout=2000):
+            if loc.is_visible(timeout=8000):
                 call_button = loc
                 break
         except Exception:
             continue
+
+    # 3) لو مالقناش الزر، اعمل scroll لتحت وحاول تاني مرة واحدة
+    if call_button is None:
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(2000)
+        for selector in CONTACT_BUTTON_SELECTORS:
+            loc = page.locator(selector).first
+            try:
+                if loc.is_visible(timeout=5000):
+                    call_button = loc
+                    break
+            except Exception:
+                continue
 
     if call_button is None:
         return {"_no_phone": True}
@@ -114,12 +129,12 @@ def _try_fetch_once(page, ad_url: str, listing_id: str):
     call_button.click(force=True)
     page.wait_for_timeout(3000)
 
-    # 3) Try API again after click
+    # 4) Try API again after click
     data = _call_api_directly(page, listing_id, ad_url)
     if has_valid_phone(data):
         return data
 
-    # 4) If API returned name but no valid phone, treat as failure
+    # 5) If API returned name but no valid phone, treat as failure
     if isinstance(data, dict) and data.get("name") is not None:
         print(f"  [EMPTY-PHONE] {ad_url} | Name: {data.get('name')} (no valid number)")
         return None
@@ -152,8 +167,6 @@ def fetch_contact_info(page, ad_url: str, max_retries: int = 2) -> dict | None:
             return None
 
         if isinstance(data, dict) and has_valid_phone(data):
-            mobile = data.get("mobile") or data.get("whatsapp") or data.get("proxyMobile")
-            #print(f"  [SUCCESS] {ad_url} | Name: {data['name']} | Mobile: {mobile}")
             print(f"  [SUCCESS] {ad_url}")
             return data
 

@@ -3,7 +3,7 @@ name: "DOMAN Schema Monitor"
 on:
   workflow_run:
     workflows:
-      - "DOMAN"
+      - "Fetch Phones"
     types:
       - completed
 

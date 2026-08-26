@@ -184,7 +184,7 @@ def extract_subcategory_breakdown(data: Any) -> List[Dict[str, Any]]:
 def _json_prefixes_for_date(base: str, category: Optional[str], dt: datetime) -> List[str]:
     """
     Build R2 prefix for JSON summaries.
-    Structure: DKSA/year=2026/month=08/day=15/vehicles/cars-for-sale/summary/
+    Structure: DOMAN/year=2026/month=08/day=15/vehicles/cars-for-sale/summary/
     """
     base = base.strip("/")
     date_part = f"year={dt.year}/month={dt.month:02d}/day={dt.day:02d}"
