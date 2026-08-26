@@ -319,7 +319,31 @@ def excel_prefixes_for_date(base: str, category: Optional[str], dt: datetime) ->
 _TEMPLATE_MARKERS = ("{", "or Main", "or All Listings")
 
 # Scrapers that may legitimately produce zero files on many days (e.g. no yesterday listings)
-_FILES_OPTIONAL_SCRAPERS = frozenset({})
+_FILES_OPTIONAL_SCRAPERS = frozenset({
+    "cars-for-sale (vehicles)",
+    "cars-for-rent (vehicles)",
+    "car-accessories (vehicles)",
+    "motorcycles (vehicles)",
+    "boats (vehicles)",
+    "trucks (vehicles)",
+    "other-vehicles (vehicles)",
+    "spare-parts (vehicles)",
+    "vip-car-plates (vehicles)",
+    "properties-for-rent (properties)",
+    "properties-for-sale (properties)",
+    "mobile-phones-accessories",
+    "electronics-home-appliances",
+    "home-garden",
+    "fashion-beauty",
+    "pets",
+    "kids-babies",
+    "sporting-goods-bikes",
+    "hobbies-music-art-books",
+    "jobs-services",
+    "business-industrial",
+    "services",
+    "motors"
+})
 
 # Per-scraper validation overrides when R2 schema does not match actual Excel layout
 _SCRAPER_PROFILES: Dict[str, Dict] = {
