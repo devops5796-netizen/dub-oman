@@ -198,7 +198,6 @@ _col_standard_listing: &col_standard_listing
   - updatedAt
   - userExternalID
   - contact_info
-  - image_r2_paths
 
 _col_properties_listing: &col_vproperties_listing
   - activeProducts
@@ -234,7 +233,6 @@ _col_properties_listing: &col_vproperties_listing
   - updatedAt
   - userExternalID
   - contact_info
-  - image_r2_paths
 
 _col_vehicles_listing: &col_vehicles_listing
   - agency
@@ -269,7 +267,6 @@ _col_vehicles_listing: &col_vehicles_listing
   - updatedAt
   - userExternalID
   - contact_info
-  - image_r2_paths
 
 
 _col_motors_listings: &col_motors_listings
@@ -295,7 +292,6 @@ _col_motors_listings: &col_motors_listings
   - overview_data.info_data
   - overview_data.images
   - overview_data.colors
-  - image_r2_paths
 
 # ── PER-SCRAPER SCHEMAS ──────────────────────────────────────
 excel_schema:
