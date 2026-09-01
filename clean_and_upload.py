@@ -257,7 +257,7 @@ def clean_and_group(df: pd.DataFrame, page=None, dt: datetime = None):
             r2_category_path = resolve_category_r2_path(cat0_slug)
 
         # image_r2_paths = download_images(urls, id_prod=ad_id, category_display=r2_category_path, dt=dt)
-        # record = row.to_dict()
+        record = row.to_dict()
         # record["image_r2_paths"] = image_r2_paths
         record = clean_timestamp_fields(record)
         record = clean_active_products(record)
