@@ -204,6 +204,7 @@ def build_complete_summary_motors(by_make: dict, dt: datetime, stats_data: dict 
             "name_ar": "سيارات جديدة",
             "name_en": "Motors",
             "slug": "motors",
+            "r2_path": "motors",
         },
         "workflow_name": "motors",
         "total_subcategories": len(subcategories),
@@ -336,7 +337,9 @@ def build_excel(models: dict[str, list]) -> io.BytesIO:
     return buf
 
 
-def upload_by_make(by_make: dict[str, dict[str, list]], dt: datetime) -> None:
+def upload_by_make(by_make: dict[str, dict[str, list]], dt: datetime, local_dir: str | None = None) -> None:
+    if local_dir:
+        os.makedirs(local_dir, exist_ok=True)
     for make_slug, models in by_make.items():
         total_ads = sum(len(rows) for rows in models.values())
         print(f"  - {make_slug}: {len(models)} model(s), {total_ads} car(s)")
@@ -347,15 +350,22 @@ def upload_by_make(by_make: dict[str, dict[str, list]], dt: datetime) -> None:
             dt=dt,
         )
         print(f"      Excel -> {excel_key}")
+        if local_dir:
+            excel_buf.seek(0)
+            with open(os.path.join(local_dir, f"{make_slug}.xlsx"), "wb") as f:
+                f.write(excel_buf.read())
         json_bytes = json.dumps(models, ensure_ascii=False, indent=2, default=str).encode("utf-8")
         json_key = upload_buffer(
             io.BytesIO(json_bytes), filename=f"{make_slug}.json", category_display='motors', file_type="json",
             content_type="application/json", dt=dt,
         )
         print(f"      JSON  -> {json_key}")
+        if local_dir:
+            with open(os.path.join(local_dir, f"{make_slug}.json"), "wb") as f:
+                f.write(json_bytes)
 
 
-def run_finalize(input_path: str, images_dir: str, skip_summary: bool = False):
+def run_finalize(input_path: str, images_dir: str, skip_summary: bool = False, local_output_dir: str | None = None):
     dt = datetime.now(timezone.utc)
     data_date = dt
     
@@ -403,7 +413,7 @@ def run_finalize(input_path: str, images_dir: str, skip_summary: bool = False):
 
     by_make = clean_and_split_prebuilt(df)
     print(f"Split into {len(by_make)} make(s)")
-    upload_by_make(by_make, data_date)
+    upload_by_make(by_make, data_date, local_dir=local_output_dir)
 
     # Read stats and failed data
     stats_data = None
@@ -421,6 +431,11 @@ def run_finalize(input_path: str, images_dir: str, skip_summary: bool = False):
     # Build summary
     summary = build_complete_summary_motors(by_make, data_date, stats_data, failed_data)
     
+    if local_output_dir:
+        os.makedirs(local_output_dir, exist_ok=True)
+        with open(os.path.join(local_output_dir, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2)
+
     if skip_summary:
         # ✅ Save placeholder locally (to be finalized later)
         placeholder_path = "summary_placeholder_motors.json"
@@ -454,6 +469,9 @@ if __name__ == "__main__":
     parser.add_argument("--images-dir", default="images_parts")
     parser.add_argument("--skip-summary", action="store_true",
                         help="Skip uploading summary, save placeholder instead")
+    parser.add_argument("--local-output-dir", default=None,
+                        help="If set, also save a local copy of each make's Excel/JSON and the "
+                             "summary here (e.g. for a GitHub Actions artifact upload)")
     args = parser.parse_args()
 
     if not args.input_path:
@@ -465,4 +483,4 @@ if __name__ == "__main__":
         output_csv = args.output_csv or f"images_{args.start}_{args.end}.csv"
         run_images_chunk(args.input_path, args.start, args.end, args.workers, output_csv)
     else:
-        run_finalize(args.input_path, args.images_dir, args.skip_summary)
+        run_finalize(args.input_path, args.images_dir, args.skip_summary, args.local_output_dir)
