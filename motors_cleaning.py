@@ -20,7 +20,7 @@ COLUMNS_TO_DROP: list[str] = ['content', 'description', 'content_l1', 'descripti
                               'mapped_model_id', 'mapped_make_id']
 
 MAX_IMAGE_DIMENSION = 1280
-WEBP_QUALITY = 65
+WEBP_QUALITY = 75
 
 
 # =============================================================================
@@ -284,10 +284,15 @@ def clean_and_split_prebuilt(df: pd.DataFrame) -> dict[str, dict[str, list]]:
     by_make: dict[str, dict[str, list]] = {}
     for _, row in df.iterrows():
         record = row.to_dict()
-        if raw_images_col:
-            record.pop(raw_images_col, None)
-        r2_paths = record.pop("images_r2_paths", None)
-        record["images"] = r2_paths if isinstance(r2_paths, list) else []
+        # if raw_images_col:
+        #     record.pop(raw_images_col, None)
+        # r2_paths = record.pop("images_r2_paths", None)
+        # record["images"] = r2_paths if isinstance(r2_paths, list) else []
+        # Images step is disabled -- keep the original scraped image URLs
+        # instead of R2 paths.
+        raw_images_value = record.pop(raw_images_col, None) if raw_images_col else None
+        record["images"] = extract_image_urls(raw_images_value)
+        record.pop("images_r2_paths", None)
         record.pop("_row_id", None)
         make_slug = sanitize_name(record.get(make_col) or "unknown")
         model_slug = sanitize_name(record.get(model_col) or "unknown")
@@ -377,22 +382,24 @@ def run_finalize(input_path: str, images_dir: str, skip_summary: bool = False):
         df = df.drop(columns=existing_cols)
         print(f"  Dropped columns: {existing_cols}")
 
-    if "_row_id" in df.columns:
-        image_files = glob.glob(os.path.join(images_dir, "images_*.csv"))
-        if image_files:
-            image_parts = [pd.read_csv(f) for f in image_files if os.path.getsize(f) > 0]
-            image_parts = [p for p in image_parts if not p.empty]
-            if image_parts:
-                images_merged = pd.concat(image_parts, ignore_index=True)
-                images_merged["images_r2_paths"] = images_merged["images_r2_paths"].apply(
-                    lambda v: json.loads(v) if pd.notna(v) and v else []
-                )
-                df = df.merge(images_merged, on="_row_id", how="left")
-                print(f"  Merged image paths for {images_merged['images_r2_paths'].apply(bool).sum()}/{len(df)} rows")
-            else:
-                print("  No non-empty image chunk files found -- proceeding without images.")
-        else:
-            print(f"  No image chunk files found under {images_dir} -- proceeding without images.")
+    # Images step is disabled -- no R2 image upload, no image-chunk merge.
+    # Original scraped image URLs are kept as-is in clean_and_split_prebuilt.
+    # if "_row_id" in df.columns:
+    #     image_files = glob.glob(os.path.join(images_dir, "images_*.csv"))
+    #     if image_files:
+    #         image_parts = [pd.read_csv(f) for f in image_files if os.path.getsize(f) > 0]
+    #         image_parts = [p for p in image_parts if not p.empty]
+    #         if image_parts:
+    #             images_merged = pd.concat(image_parts, ignore_index=True)
+    #             images_merged["images_r2_paths"] = images_merged["images_r2_paths"].apply(
+    #                 lambda v: json.loads(v) if pd.notna(v) and v else []
+    #             )
+    #             df = df.merge(images_merged, on="_row_id", how="left")
+    #             print(f"  Merged image paths for {images_merged['images_r2_paths'].apply(bool).sum()}/{len(df)} rows")
+    #         else:
+    #             print("  No non-empty image chunk files found -- proceeding without images.")
+    #     else:
+    #         print(f"  No image chunk files found under {images_dir} -- proceeding without images.")
 
     by_make = clean_and_split_prebuilt(df)
     print(f"Split into {len(by_make)} make(s)")

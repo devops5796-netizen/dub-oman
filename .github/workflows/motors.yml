@@ -144,94 +144,9 @@ jobs:
             request_stats_motors.json
           if-no-files-found: ignore
 
-  detect_image_jobs:
-    runs-on: ubuntu-latest
-    needs: merge_details
-    outputs:
-      matrix: ${{ steps.build_matrix.outputs.matrix }}
-    steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install pandas
-
-      - name: Download merged data
-        uses: actions/download-artifact@v4
-        with:
-          name: merged-cars
-
-      - name: Build image-job matrix
-        id: build_matrix
-        run: |
-          python << 'EOF'
-          import json
-          import os
-          import pandas as pd
-
-          CHUNK_SIZE = 150
-
-          df = pd.read_csv("all_motors_cars.csv")
-          n = len(df)
-          print(f"Total cars: {n}")
-
-          matrix = {"include": []}
-          for i in range(0, n, CHUNK_SIZE):
-              start = i
-              end = min(i + CHUNK_SIZE, n)
-              matrix["include"].append({"start": start, "end": end})
-
-          print(f"Total image jobs: {len(matrix['include'])}")
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
-              fh.write(f"matrix={json.dumps(matrix)}\n")
-          EOF
-
-  process_images:
-    runs-on: ubuntu-latest
-    needs: detect_image_jobs
-    strategy:
-      matrix: ${{ fromJson(needs.detect_image_jobs.outputs.matrix) }}
-      max-parallel: 10
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Download merged data
-        uses: actions/download-artifact@v4
-        with:
-          name: merged-cars
-
-      - name: Download & upload images [${{ matrix.start }}:${{ matrix.end }})
-        env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
-          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-        run: |
-          python motors_cleaning.py all_motors_cars.csv \
-            --mode images \
-            --start ${{ matrix.start }} \
-            --end ${{ matrix.end }} \
-            --workers 8
-
-      - name: Upload image chunk results
-        uses: actions/upload-artifact@v4
-        with:
-          name: images-${{ matrix.start }}-${{ matrix.end }}
-          path: images_${{ matrix.start }}_${{ matrix.end }}.csv
-          if-no-files-found: ignore
-
   finalize:
     runs-on: ubuntu-latest
-    needs: process_images
+    needs: merge_details
     steps:
       - uses: actions/checkout@v4
 
@@ -246,13 +161,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: merged-cars
-
-      - name: Download all image chunk results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: images-*
-          merge-multiple: true
-          path: images_parts/
 
       - name: Split by make/model & upload to R2 (exclude summary.json)
         env:
@@ -263,7 +171,6 @@ jobs:
         run: |
           python motors_cleaning.py all_motors_cars.csv \
             --mode finalize \
-            --images-dir images_parts \
             --skip-summary
 
       - name: Upload summary placeholder (to be finalized later)
@@ -291,34 +198,29 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Get workflow duration from GitHub API
-      - name: Get workflow duration
-        id: workflow_duration
+      - name: Get workflow start time
+        id: workflow_start
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           STARTED_AT=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }} --jq .run_started_at)
-          START_TIMESTAMP=$(date -d "$STARTED_AT" +%s)
-          NOW_TIMESTAMP=$(date -u +%s)
-          DURATION_SEC=$((NOW_TIMESTAMP - START_TIMESTAMP))
-          echo "start_time=$START_TIMESTAMP" >> "$GITHUB_OUTPUT"
-          echo "duration_sec=$DURATION_SEC" >> "$GITHUB_OUTPUT"
-          echo "Workflow started at: $STARTED_AT"
-          echo "Workflow duration: ${DURATION_SEC}s"
+          echo "start_time=$(date -d "$STARTED_AT" +%s)" >> "$GITHUB_OUTPUT"
 
-      - name: Download summary placeholder
+      - name: Download all summary placeholders
         uses: actions/download-artifact@v4
         with:
-          name: summary-motors
+          pattern: summary-*
+          merge-multiple: true
           path: summaries/
 
-      - name: Finalize and upload summary to R2
+      - name: Finalize and upload summaries to R2
         env:
           CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
           CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
           CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
           CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-          WORKFLOW_DURATION: ${{ steps.workflow_duration.outputs.duration_sec }}
-          WORKFLOW_START_TIME: ${{ steps.workflow_duration.outputs.start_time }}
         run: |
-          python finalize_summaries.py --summaries-dir summaries/ --date "$(date -u +%Y-%m-%d)" --workflow motors
+          NOW_TIMESTAMP=$(date -u +%s)
+          DURATION_SEC=$((NOW_TIMESTAMP - ${{ steps.workflow_start.outputs.start_time }}))
+          echo "Workflow duration right before upload: ${DURATION_SEC}s"
+          WORKFLOW_DURATION="$DURATION_SEC" python finalize_summaries.py --summaries-dir summaries/ --date "$(date -u +%Y-%m-%d)"
