@@ -32,7 +32,7 @@ def get_all_motors():
 
     data = response.json()
     total_pages = data["page_info"]["total_pages"]
-    total_pages = 5
+    total_pages = 2
     print(f"Total pages: {total_pages}")
     all_cars.extend(data["cars"])
 
