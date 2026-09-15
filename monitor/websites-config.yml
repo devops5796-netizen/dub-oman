@@ -268,6 +268,40 @@ _col_vehicles_listing: &col_vehicles_listing
   - userExternalID
   - contact_info
 
+_col_vehicles_car_plates_listing: &col_vehicles_car_plates_listing
+  - agency
+  - activeProducts
+  - canApplyBadges
+  - category
+  - contactInfo
+  - createdAt
+  - description
+  - externalID
+  - extraFields
+  - format
+  - formattedExtraFields
+  - geography
+  - id
+  - isSellerVerified
+  - keywords
+  - location
+  - objectID
+  - photoCount
+  - photo_urls
+  - product
+  - productInfo
+  - productScore
+  - purpose
+  - slug
+  - sourceID
+  - state
+  - timestamp
+  - title
+  - type
+  - updatedAt
+  - userExternalID
+  - contact_info
+  - image_r2_paths
 
 _col_motors_listings: &col_motors_listings
   - version_id
@@ -292,6 +326,41 @@ _col_motors_listings: &col_motors_listings
   - overview_data.info_data
   - overview_data.images
   - overview_data.colors
+
+_col_services_listing: &col_services_listing
+  - activeProducts
+  - canApplyBadges
+  - category
+  - contactInfo
+  - createdAt
+  - description
+  - externalID
+  - extraFields
+  - format
+  - formattedExtraFields
+  - geography
+  - id
+  - isSellerVerified
+  - keywords
+  - location
+  - objectID
+  - photoCount
+  - photo_urls
+  - product
+  - productInfo
+  - productScore
+  - purpose
+  - slug
+  - sourceID
+  - state
+  - timestamp
+  - title
+  - type
+  - updatedAt
+  - userExternalID
+  - contact_info
+  - image_r2_paths
+
 
 # ── PER-SCRAPER SCHEMAS ──────────────────────────────────────
 excel_schema:
@@ -365,7 +434,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"
-        required_columns: *col_vehicles_listing
+        required_columns: *col_vehicles_car_plates_listing
         row_count_range: [1, 600]
     min_file_size_kb: 5
 
@@ -469,7 +538,7 @@ excel_schema:
     excel_file_pattern: "{category_slug}.xlsx"
     sheets:
       - name: "{child_category or Main}"                
-        required_columns: *col_standard_listing
+        required_columns: *col_services_listing
         row_count_range: [1, 600]
     min_file_size_kb: 5
 
