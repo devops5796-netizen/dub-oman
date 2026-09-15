@@ -28,6 +28,11 @@ COLUMNS_TO_DROP = ['geo_point', 'price', 'title_l1', 'description_l1', 'slug_l1'
 
 VEHICLE_MANUFACTURER_SPLIT_SLUGS = {"cars-for-sale", "cars-for-rent"}
 
+# Ads whose category tree (at any level: cat0, cat1, or cat2) matches one of
+# these slugs get their images downloaded and uploaded to R2. Everything else
+# keeps photo_urls only, with no image upload.
+IMAGE_UPLOAD_SLUGS = {"vip-car-plates", "services", "land-for-sale"}
+
 # Some top-level scraped categories should be grouped under a shared parent
 # folder in R2, with their own slug as the subfolder:
 #   properties-for-rent -> properties/properties-for-rent
@@ -256,9 +261,16 @@ def clean_and_group(df: pd.DataFrame, page=None, dt: datetime = None):
         else:
             r2_category_path = resolve_category_r2_path(cat0_slug)
 
-        # image_r2_paths = download_images(urls, id_prod=ad_id, category_display=r2_category_path, dt=dt)
+        ad_slugs = {
+            cat0.get("slug"),
+            cat1.get("slug") if cat1 else None,
+            cat2.get("slug") if cat2 else None,
+        }
+
         record = row.to_dict()
-        # record["image_r2_paths"] = image_r2_paths
+        if ad_slugs & IMAGE_UPLOAD_SLUGS:
+            image_r2_paths = download_images(urls, id_prod=ad_id, category_display=r2_category_path, dt=dt)
+            record["image_r2_paths"] = image_r2_paths
         record = clean_timestamp_fields(record)
         record = clean_active_products(record)
         record["photo_urls"] = urls
