@@ -38,4 +38,4 @@ jobs:
           CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
           CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
         run: |
-          python r2_doman_contact_extractor.py "${{ inputs.start_date }}" "${{ inputs.end_date }}"
+          python r2_contact_extractor.py "${{ inputs.start_date }}" "${{ inputs.end_date }}"

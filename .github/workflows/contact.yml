@@ -34,4 +34,4 @@ jobs:
         run: |
           DATE_PREFIX=$(date +'%Y-%m-%d')
           echo "Generating report for: $DATE_PREFIX"
-          python r2_doman_contact_extractor.py "$DATE_PREFIX"
+          python r2_contact_extractor.py "$DATE_PREFIX"
