@@ -3,8 +3,8 @@
 R2 Contact Info Extractor — Oman (dubizzle.com.om / DOMAN)
 ============================================================
 Usage:
-  python r2_doman_contact_extractor.py <YYYY-MM-DD>                 # single day
-  python r2_doman_contact_extractor.py <START_YYYY-MM-DD> <END_YYYY-MM-DD>   # backfill range, inclusive
+  python r2_contact_extractor.py <YYYY-MM-DD>                 # single day
+  python r2_contact_extractor.py <START_YYYY-MM-DD> <END_YYYY-MM-DD>   # backfill range, inclusive
 
 Direct port of the DKSA extractor -- same dedup/merge logic, just:
   - BASE_PREFIX changed from "DKSA/" to "DOMAN/"
@@ -424,6 +424,6 @@ if __name__ == "__main__":
         run_range(sys.argv[1], sys.argv[2])
     else:
         print("Usage:")
-        print("  python r2_doman_contact_extractor.py <YYYY-MM-DD>                      # single day")
-        print("  python r2_doman_contact_extractor.py <START_YYYY-MM-DD> <END_YYYY-MM-DD>  # backfill range")
+        print("  python r2_contact_extractor.py <YYYY-MM-DD>                      # single day")
+        print("  python r2_contact_extractor.py <START_YYYY-MM-DD> <END_YYYY-MM-DD>  # backfill range")
         sys.exit(1)
