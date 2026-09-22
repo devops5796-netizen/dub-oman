@@ -1,0 +1,41 @@
+name: DOMAN Contact Info Backfill (one-off)
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "First day to process (YYYY-MM-DD), inclusive"
+        required: false
+        type: string
+        default: "2026-08-10"
+      end_date:
+        description: "Last day to process (YYYY-MM-DD), inclusive"
+        required: false
+        type: string
+        default: "2026-09-22"
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: "Run R2 DOMAN Contact Extractor backfill"
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: |
+          python r2_doman_contact_extractor.py "${{ inputs.start_date }}" "${{ inputs.end_date }}"
