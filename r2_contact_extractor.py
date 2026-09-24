@@ -372,7 +372,7 @@ def process_category(day_prefix: str, category: str, prev_day_prefix: str):
     return len(merged)
 
 
-def main(target_date: str):
+def main(target_date: str, only_category: str | None = None):
     year, month, day = parse_date(target_date)
     day_prefix = get_day_prefix(year, month, day)
     prev_day_prefix = get_prev_day_prefix(year, month, day)
@@ -381,6 +381,12 @@ def main(target_date: str):
     print(f"📅 Previous: {prev_day_prefix}")
 
     categories = get_categories(day_prefix)
+    if only_category:
+        if only_category not in categories:
+            print(f"   (category '{only_category}' not found for this day, skipping)")
+            return
+        categories = [only_category]
+
     if not categories:
         print("   (no categories found)")
         return
@@ -391,11 +397,7 @@ def main(target_date: str):
     print("\n✅ Done.")
 
 
-def run_range(start_date: str, end_date: str):
-    """Backfill mode: run every day from start_date to end_date, inclusive,
-    STRICTLY in chronological order. Each day depends on the previous day's
-    merged output already being written, so this can't be parallelized or
-    run out of order."""
+def run_range(start_date: str, end_date: str, only_category: str | None = None):
     start = datetime.strptime(start_date, "%Y-%m-%d").date()
     end = datetime.strptime(end_date, "%Y-%m-%d").date()
     if end < start:
@@ -411,19 +413,38 @@ def run_range(start_date: str, end_date: str):
         print(f"\n{'=' * 70}")
         print(f"[{day_num}/{total_days}] {date_str}")
         print('=' * 70)
-        main(date_str)
+        main(date_str, only_category)
         current += timedelta(days=1)
 
     print(f"\n✅ Backfill complete: {start.isoformat()} -> {end.isoformat()} ({total_days} day(s)).")
 
 
+def list_categories_in_range(start_date: str, end_date: str):
+    """Union of categories across the date range -> prints compact JSON to stdout."""
+    start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    cats = set()
+    current = start
+    while current <= end:
+        y, m, d = parse_date(current.isoformat())
+        cats.update(get_categories(get_day_prefix(y, m, d)))
+        current += timedelta(days=1)
+    print(json.dumps(sorted(cats)))
+
+
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        main(sys.argv[1])
-    elif len(sys.argv) == 3:
-        run_range(sys.argv[1], sys.argv[2])
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("start_date")
+    ap.add_argument("end_date", nargs="?")
+    ap.add_argument("--category", default=None)
+    ap.add_argument("--list-categories", action="store_true")
+    args = ap.parse_args()
+
+    end = args.end_date or args.start_date
+    if args.list_categories:
+        list_categories_in_range(args.start_date, end)
+    elif args.end_date:
+        run_range(args.start_date, args.end_date, args.category)
     else:
-        print("Usage:")
-        print("  python r2_contact_extractor.py <YYYY-MM-DD>                      # single day")
-        print("  python r2_contact_extractor.py <START_YYYY-MM-DD> <END_YYYY-MM-DD>  # backfill range")
-        sys.exit(1)
+        main(args.start_date, args.category)

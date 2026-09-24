@@ -6,24 +6,79 @@ on:
     types:
       - completed
   workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Start date (YYYY-MM-DD) - default: today"
+        required: false
+      end_date:
+        description: "End date (YYYY-MM-DD) - default: same as start"
+        required: false
 
 jobs:
-  extract:
+  prepare:
     runs-on: ubuntu-latest
-
+    outputs:
+      categories: ${{ steps.cats.outputs.categories }}
+      start_date: ${{ steps.dates.outputs.start_date }}
+      end_date: ${{ steps.dates.outputs.end_date }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - run: pip install -r requirements.txt
+
+      # Compute the date ONCE so every category job uses the same day,
+      # even if the run crosses midnight.
+      - name: Resolve dates
+        id: dates
+        env:
+          IN_START: ${{ inputs.start_date }}
+          IN_END: ${{ inputs.end_date }}
         run: |
-          pip install -r requirements.txt
+          TODAY=$(date -u +'%Y-%m-%d')
+          START="${IN_START:-$TODAY}"
+          END="${IN_END:-$START}"
+          echo "start_date=$START" >> "$GITHUB_OUTPUT"
+          echo "end_date=$END" >> "$GITHUB_OUTPUT"
+
+      - name: List categories
+        id: cats
+        env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+          START: ${{ steps.dates.outputs.start_date }}
+          END: ${{ steps.dates.outputs.end_date }}
+        run: |
+          CATS=$(python r2_contact_extractor.py "$START" "$END" --list-categories)
+          echo "Categories: $CATS"
+          echo "categories=$CATS" >> "$GITHUB_OUTPUT"
+
+  extract:
+    name: Extract - ${{ matrix.category }}
+    needs: prepare
+    if: needs.prepare.outputs.categories != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false      # one failed category doesn't cancel the rest
+      max-parallel: 1       # run categories one after another
+      matrix:
+        category: ${{ fromJSON(needs.prepare.outputs.categories) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
 
       - name: "Run R2 DOMAN Contact Extractor"
         env:
@@ -31,7 +86,13 @@ jobs:
           CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
           CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
           CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+          CATEGORY: ${{ matrix.category }}
+          START: ${{ needs.prepare.outputs.start_date }}
+          END: ${{ needs.prepare.outputs.end_date }}
         run: |
-          DATE_PREFIX=$(date +'%Y-%m-%d')
-          echo "Generating report for: $DATE_PREFIX"
-          python r2_contact_extractor.py "$DATE_PREFIX"
+          echo "Category: $CATEGORY | $START -> $END"
+          if [ "$START" = "$END" ]; then
+            python r2_contact_extractor.py "$START" --category "$CATEGORY"
+          else
+            python r2_contact_extractor.py "$START" "$END" --category "$CATEGORY"
+          fi
