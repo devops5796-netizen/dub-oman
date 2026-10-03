@@ -342,5 +342,14 @@ if __name__ == "__main__":
         help="Top-level category slug to scrape",
     )
     parser.add_argument("--out-dir", default="data")
+    parser.add_argument(
+        "--target-date", default=None,
+        help="YYYY-MM-DD of ads to keep (default: yesterday UTC)",
+    )
     args = parser.parse_args()
+
+    if args.target_date:
+        TARGET_DATE = datetime.strptime(args.target_date, "%Y-%m-%d").date()
+        print(f"Using manual TARGET_DATE: {TARGET_DATE}")
+
     run(args.category, args.out_dir)

@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Scrape date (YYYY-MM-DD) - leave empty for yesterday"
+        required: false
+        type: string
 
 jobs:
   # =========================================================================
@@ -44,9 +49,15 @@ jobs:
         run: playwright install --with-deps chromium
 
       - name: Scrape ${{ matrix.category }}
-        # env:
-        #   AUTHORIZATION: ${{ secrets.AUTHORIZATION }}
-        run: python main.py --category ${{ matrix.category }} --out-dir data
+        env:
+          TARGET_DATE: ${{ inputs.target_date }}
+          #AUTHORIZATION: ${{ secrets.AUTHORIZATION }}
+        run: |
+          if [ -n "$TARGET_DATE" ]; then
+            python main.py --category ${{ matrix.category }} --out-dir data --target-date "$TARGET_DATE"
+          else
+            python main.py --category ${{ matrix.category }} --out-dir data
+          fi
 
       - name: Clean & upload (exclude summary.json)
         env:
@@ -54,8 +65,16 @@ jobs:
           CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
           CF_R2_ENDPOINT_URL: ${{ secrets.CF_R2_ENDPOINT_URL }}
           CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
-        run: python clean_and_upload.py data/${{ matrix.category }}.csv --date "$(date -u +%Y-%m-%d)" --skip-summary
-
+          TARGET_DATE: ${{ inputs.target_date }}
+        run: |
+          if [ -n "$TARGET_DATE" ]; then
+            SAVE_DATE=$(date -u -d "$TARGET_DATE + 1 day" +%Y-%m-%d)
+          else
+            SAVE_DATE=$(date -u +%Y-%m-%d)
+          fi
+          echo "Scrape date: ${TARGET_DATE:-yesterday} | Save date: $SAVE_DATE"
+          python clean_and_upload.py data/${{ matrix.category }}.csv --date "$SAVE_DATE" --skip-summary
+      
       - name: Upload summary placeholder (to be finalized later)
         uses: actions/upload-artifact@v4
         with:
@@ -111,5 +130,11 @@ jobs:
           CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
           WORKFLOW_DURATION: ${{ steps.workflow_duration.outputs.duration_sec }}
           WORKFLOW_START_TIME: ${{ steps.workflow_duration.outputs.start_time }}
+          TARGET_DATE: ${{ inputs.target_date }}
         run: |
-          python finalize_summaries.py --summaries-dir summaries/ --date "$(date -u +%Y-%m-%d)"
+          if [ -n "$TARGET_DATE" ]; then
+            SAVE_DATE=$(date -u -d "$TARGET_DATE + 1 day" +%Y-%m-%d)
+          else
+            SAVE_DATE=$(date -u +%Y-%m-%d)
+          fi
+          python finalize_summaries.py --summaries-dir summaries/ --date "$SAVE_DATE"

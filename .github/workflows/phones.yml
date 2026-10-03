@@ -6,6 +6,19 @@ on:
     types:
       - completed
   workflow_dispatch:
+    inputs:
+      date:
+        description: "Data date (YYYY-MM-DD) - default: today"
+        required: false
+      categories:
+        description: "Category slugs (space separated) - default: all"
+        required: false
+      delay_min:
+        description: "Min delay (sec)"
+        required: false
+      delay_max:
+        description: "Max delay (sec)"
+        required: false
 
 
 jobs:
