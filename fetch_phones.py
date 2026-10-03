@@ -89,6 +89,10 @@ def upload_excel(client, bucket, key, data):
         ContentType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
+def get_category(key: str) -> str:
+    # DOMAN/year=YYYY/month=MM/day=DD/<category>/json/<file>.json
+    parts = key.split('/')
+    return parts[4] if len(parts) > 5 else ""
 
 def process_file(client, bucket, json_key, page, delay_min, delay_max, skip_existing=True):
     print(f"\n{'='*60}")
@@ -148,18 +152,24 @@ def process_file(client, bucket, json_key, page, delay_min, delay_max, skip_exis
     return success, failed, skipped, total_records
 
 
-def run(date_str: str, delay_min: float = 5.0, delay_max: float = 10.0, 
-        max_files: int = None, categories: list = None, skip_existing: bool = True):
+def run(date_str: str, delay_min: float = 5.0, delay_max: float = 10.0,
+        max_files: int = None, categories: list = None, skip_existing: bool = True,
+        list_categories: bool = False):
     client = get_r2_client()
     if not client or not BUCKET_NAME:
-        print("❌ Failed to initialize R2 client")
+        print("❌ Failed to initialize R2 client", file=sys.stderr)
         return
 
     bucket = BUCKET_NAME
     files = list_today_json_files(client, bucket, date_str)
 
+    if list_categories:
+        # stdout لازم يبقى JSON بس، الـ workflow بيقراه
+        print(json.dumps(sorted({get_category(f) for f in files if get_category(f)})))
+        return
+
     if categories:
-        files = [f for f in files if any(cat in f for cat in categories)]
+        files = [f for f in files if get_category(f) in categories]
 
     if max_files:
         files = files[:max_files]
@@ -224,13 +234,16 @@ if __name__ == "__main__":
     parser.add_argument("--max-files", type=int, default=None, help="Limit number of files to process")
     parser.add_argument("--categories", nargs="+", default=None, help="Filter by category slugs")
     parser.add_argument("--no-skip-existing", action="store_true", help="Re-fetch even if phone exists")
+    parser.add_argument("--list-categories", action="store_true",
+                        help="Print JSON list of categories found for the date and exit")
     args = parser.parse_args()
 
     run(
-        args.date, 
-        args.delay_min, 
-        args.delay_max, 
-        args.max_files, 
+        args.date,
+        args.delay_min,
+        args.delay_max,
+        args.max_files,
         args.categories,
-        skip_existing=not args.no_skip_existing
+        skip_existing=not args.no_skip_existing,
+        list_categories=args.list_categories,
     )
