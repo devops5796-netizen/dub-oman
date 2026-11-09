@@ -76,6 +76,11 @@ from monitor_r2 import (
     report_r2_key,
     resolve_site_folder,
 )
+from website_ads import (
+    WEBSITE_PUBLISHED_ADS_SOURCE,
+    WebsiteAdsScanError,
+    scan_website_published_ads,
+)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -1458,6 +1463,35 @@ def main():
         "scrapers":  {},
         "alerts":    [],
     }
+
+    try:
+        website_ads = scan_website_published_ads(
+            listing_date_str,
+            os.environ.get("AUTHORIZATION"),
+        )
+        full_report.update({
+            "website_published_ads": website_ads.count,
+            "website_published_ads_date": listing_date_str,
+            "website_published_ads_source": WEBSITE_PUBLISHED_ADS_SOURCE,
+            "website_published_ads_status": "ok",
+            "website_published_ads_scan": website_ads.diagnostics(),
+        })
+        log.info(
+            f"Website-published ads ({listing_date_str} UTC): "
+            f"{website_ads.count} unique across "
+            f"{website_ads.categories_scanned} categories and "
+            f"{website_ads.pages_scanned} page(s)"
+        )
+    except WebsiteAdsScanError as exc:
+        full_report.update({
+            "website_published_ads": None,
+            "website_published_ads_date": listing_date_str,
+            "website_published_ads_source": WEBSITE_PUBLISHED_ADS_SOURCE,
+            "website_published_ads_status": "error",
+            "website_published_ads_error": str(exc)[:300],
+            "website_published_ads_scan": exc.diagnostics(),
+        })
+        log.error(f"Website-published ads scan failed: {exc}")
 
     scrapers_cfg = config.get("scrapers", [])
     log.info(f"Processing {len(scrapers_cfg)} scrapers …")
