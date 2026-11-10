@@ -51,7 +51,6 @@ jobs:
       - name: Scrape ${{ matrix.category }}
         env:
           TARGET_DATE: ${{ inputs.target_date }}
-          #AUTHORIZATION: ${{ secrets.AUTHORIZATION }}
         run: |
           if [ -n "$TARGET_DATE" ]; then
             python main.py --category ${{ matrix.category }} --out-dir data --target-date "$TARGET_DATE"

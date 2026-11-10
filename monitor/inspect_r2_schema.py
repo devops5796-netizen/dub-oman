@@ -1465,10 +1465,7 @@ def main():
     }
 
     try:
-        website_ads = scan_website_published_ads(
-            listing_date_str,
-            os.environ.get("AUTHORIZATION"),
-        )
+        website_ads = scan_website_published_ads(listing_date_str)
         full_report.update({
             "website_published_ads": website_ads.count,
             "website_published_ads_date": listing_date_str,

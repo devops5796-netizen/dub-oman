@@ -14,11 +14,11 @@ separate new-car catalog is excluded because its feed does not provide a
 verified ad publication date. This is not active-listing inventory and does
 not use the R2 `unique_ads` count, which remains unchanged.
 
-The monitor workflow reads the website API's `Authorization` header from the
-GitHub Actions secret named `AUTHORIZATION`. If the source is unavailable, the
-report stores a null count, status `error`, a short error, and scan diagnostics;
-it never reports a partial total or falls back to R2. Historical dates are
-counted only if the website search API still returns their records.
+The website search request does not use an `Authorization` header. If the
+source is unavailable, the report stores a null count, status `error`, a short
+error, and scan diagnostics; it never reports a partial total or falls back to
+R2. Historical dates are counted only if the website search API still returns
+their records.
 
 The site monitor stores these fields at the top level of its R2 `report.json`:
 `website_published_ads`, `website_published_ads_date`,

@@ -76,7 +76,7 @@ class WebsiteAdsScanResult:
 
 
 FetchPage = Callable[
-    [str, float, float, Optional[List[Any]], str],
+    [str, float, float, Optional[List[Any]]],
     Dict[str, Any],
 ]
 
@@ -86,7 +86,6 @@ def _request_search_page(
     start_timestamp: float,
     end_timestamp: float,
     search_after: Optional[List[Any]],
-    authorization: str,
 ) -> Dict[str, Any]:
     query: Dict[str, Any] = {
         "size": PAGE_SIZE,
@@ -135,7 +134,6 @@ def _request_search_page(
         data=body,
         headers={
             "Accept": "application/json",
-            "Authorization": authorization,
             "Content-Type": "application/x-ndjson",
             "Origin": "https://www.dubizzle.com.om",
             "Referer": "https://www.dubizzle.com.om/",
@@ -188,7 +186,6 @@ def _parse_hits(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def scan_website_published_ads(
     listing_date: str,
-    authorization: Optional[str],
     *,
     categories: Sequence[str] = WEBSITE_AD_CATEGORIES,
     fetch_page: Optional[FetchPage] = None,
@@ -200,9 +197,6 @@ def scan_website_published_ads(
         raise WebsiteAdsScanError("listing date must use YYYY-MM-DD") from exc
     if day.strftime("%Y-%m-%d") != listing_date:
         raise WebsiteAdsScanError("listing date must use YYYY-MM-DD")
-    if not authorization or not authorization.strip():
-        raise WebsiteAdsScanError("AUTHORIZATION is not configured")
-    authorization = authorization.strip()
     if not categories:
         raise WebsiteAdsScanError("no website ad categories are configured")
 
@@ -237,7 +231,6 @@ def scan_website_published_ads(
                     start_timestamp,
                     end_timestamp,
                     search_after,
-                    authorization,
                 )
                 hits = _parse_hits(payload)
             except (WebsiteAdsScanError, ValueError) as exc:

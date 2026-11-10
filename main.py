@@ -7,12 +7,8 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 import requests
 from request_tracker import tracker
-from dotenv import load_dotenv
-load_dotenv()
 
 URL = "https://search.mena.sector.run/_msearch"
-#AUTHORIZATION = os.getenv("AUTHORIZATION")
-AUTHORIZATION = "Basic b2x4LW9tLXByb2R1Y3Rpb24tc2VhcmNoOmg1PWl9alNnYSFGa1k2P0Y1NVZ0S0p6JFYkKkY1UT49"
 INDEX = "olx-om-production-ads-ar"
 LOCATION_ID = "0-1"
 
@@ -39,7 +35,6 @@ CATEGORY_SLUGS = [
 
 headers = {
     "accept": "*/*",
-    "authorization": AUTHORIZATION,
     "content-type": "application/x-ndjson",
     "origin": "https://www.dubizzle.com.om",
     "referer": "https://www.dubizzle.com.om/",
